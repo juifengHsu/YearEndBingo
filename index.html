@@ -29,7 +29,6 @@
         .cell.selected { background: var(--secondary); color: #b71c1c; transform: scale(0.9); }
         .cell.bingo-line { background: var(--primary); color: white; animation: pulse 1s infinite; }
 
-        /* 按鈕與輸入框 */
         button { 
             padding: 15px 30px; font-size: 1.1rem; border: none; border-radius: 30px; 
             background: var(--primary); color: white; cursor: pointer; margin: 10px 5px;
@@ -38,7 +37,6 @@
         button:active { transform: translateY(2px); box-shadow: none; }
         input { padding: 12px; border-radius: 8px; border: 1px solid #ccc; width: 80%; max-width: 250px; margin-bottom: 10px; font-size: 1rem; }
 
-        /* 動態顯示區 */
         #draw-number { font-size: 5rem; color: var(--primary); font-weight: bold; min-height: 100px; line-height: 100px; text-shadow: 2px 2px 4px rgba(0,0,0,0.1); }
         .lucky-tag { color: #ef6c00; font-weight: bold; font-size: 1.2rem; margin-bottom: 10px; }
 
@@ -58,6 +56,7 @@
             }
         }
     </script>
+
     <div id="page-login" class="page active">
         <h1 style="color:var(--primary)">🧧 2025 尾牙賓果</h1>
         <p>請輸入大名開始遊戲</p>
@@ -88,7 +87,10 @@
 
     <div id="page-admin" class="page">
         <h2 style="background: #333; color: white; padding: 10px;">管理者主控台</h2>
-        <div id="admin-stats">目前線上人數：<span id="player-count">0</span></div>
+        <div id="admin-stats">
+            <div>實際在線：<span id="player-count" style="color:red; font-size:1.5rem;">0</span> 人</div>
+            <div style="font-size: 0.8rem; color: #888;">(總註冊：<span id="total-reg">0</span>)</div>
+        </div>
         <button onclick="drawRandom()">🎲 隨機抽取下一號</button>
         <button onclick="pickLuckyUser()" style="background:#ef6c00">🎯 抽幸運兒指定</button>
         <hr>
@@ -97,7 +99,6 @@
     </div>
 
     <script>
-        // --- 你的 Firebase 配置 ---
         const firebaseConfig = {
             apiKey: "AIzaSyCLTGzCZUQm2ZzqfdBHk9D4xYpagaVtX7w",
             authDomain: "yearendbingo.firebaseapp.com",
@@ -118,15 +119,56 @@
         let drawnHistory = [];
         let rollingInterval = null;
 
-        // --- 核心流程 ---
+        // --- 改動 1: 全局監聽人數 (不論是誰一打開網頁就會執行) ---
+        function initGlobalMonitor() {
+            db.collection("players").onSnapshot(snap => {
+                const now = Date.now();
+                let onlineCount = 0;
+                let totalReg = snap.size;
 
-        function joinGame() {
+                snap.forEach(doc => {
+                    const data = doc.data();
+                    // 判定在線：如果 lastSeen 在 30 秒內更新過，視為在線
+                    if (data.lastSeen && (now - data.lastSeen < 30000)) {
+                        onlineCount++;
+                    }
+                });
+
+                if(document.getElementById('player-count')) {
+                    document.getElementById('player-count').innerText = onlineCount;
+                }
+                if(document.getElementById('total-reg')) {
+                    document.getElementById('total-reg').innerText = totalReg;
+                }
+            });
+        }
+        initGlobalMonitor();
+
+        // --- 改動 2: 心跳機制 (玩家報到) ---
+        function startHeartbeat() {
+            // 立即更新一次
+            updatePresence();
+            // 每 10 秒更新一次資料庫
+            setInterval(updatePresence, 10000);
+        }
+
+        function updatePresence() {
+            if (!myName) return;
+            db.collection("players").doc(myName).set({
+                name: myName,
+                lastSeen: Date.now()
+            }, { merge: true });
+        }
+
+        async function joinGame() {
             myName = document.getElementById('username').value.trim();
             if (!myName) return alert("請輸入名字");
+            
             document.getElementById('user-info').innerText = `玩家：${myName}`;
             switchPage('page-game');
             generateBoard();
             startListening();
+            startHeartbeat(); // 啟動在線追蹤
         }
 
         function generateBoard() {
@@ -155,16 +197,19 @@
             isLocked = true;
             document.getElementById('setup-controls').style.display = 'none';
             document.getElementById('status-text').innerText = "等待開獎中...";
-            await db.collection("players").doc(myName).set({ name: myName, board: myBoard, locked: true });
+            await db.collection("players").doc(myName).set({ 
+                name: myName, 
+                board: myBoard, 
+                locked: true,
+                lastSeen: Date.now()
+            }, { merge: true });
         }
 
-        // 監聽同步 (核心中的核心)
         function startListening() {
             db.collection("game_state").doc(GAME_DOC).onSnapshot(doc => {
                 const data = doc.data();
                 if (!data) return;
 
-                // 處理號碼跳動動畫
                 if (data.isRolling) {
                     startRollingEffect();
                 } else {
@@ -173,23 +218,14 @@
                     const lastNum = drawnHistory[drawnHistory.length - 1];
                     if (lastNum) {
                         document.getElementById('draw-number').innerText = lastNum;
-                        // 震動
                         if (myBoard.includes(lastNum) && "vibrate" in navigator) navigator.vibrate(200);
                     }
                     renderBoard();
                 }
-
-                // 幸運兒判斷
                 document.getElementById('lucky-panel').style.display = (data.luckyUser === myName) ? 'block' : 'none';
-            });
-
-            // 管理者專用監聽人數
-            db.collection("players").onSnapshot(snap => {
-                document.getElementById('player-count').innerText = snap.size;
             });
         }
 
-        // 動畫特效
         function startRollingEffect() {
             if (rollingInterval) return;
             document.getElementById('status-text').innerText = "📢 號碼抽取中...";
@@ -216,30 +252,28 @@
                     lines++;
                     indices.forEach(idx => {
                         const num = myBoard[idx];
-                        document.getElementById(`cell-${num}`).classList.add('bingo-line');
+                        const el = document.getElementById(`cell-${num}`);
+                        if(el) el.classList.add('bingo-line');
                     });
                 }
             });
             if (lines > 0) {
                 document.getElementById('status-text').innerText = `🎉 賓果！已連成 ${lines} 條線！`;
-                if ("vibrate" in navigator) navigator.vibrate([200, 100, 200, 100, 500]);
             }
         }
 
-        // --- 管理員操作 (需手動在網頁按 F12 輸入 showAdmin()) ---
         async function drawRandom() {
             await db.collection("game_state").doc(GAME_DOC).update({ isRolling: true, luckyUser: "" });
-            
             setTimeout(async () => {
                 const allNums = Array.from({length: 25}, (_, i) => i + 1);
                 const remaining = allNums.filter(n => !drawnHistory.includes(n));
+                if (remaining.length === 0) return alert("號碼已抽完");
                 const pick = remaining[Math.floor(Math.random() * remaining.length)];
-                
                 await db.collection("game_state").doc(GAME_DOC).update({
                     history: firebase.firestore.FieldValue.arrayUnion(pick),
                     isRolling: false
                 });
-            }, 2500); // 動畫跳動 2.5 秒
+            }, 2500);
         }
 
         async function pickLuckyUser() {
@@ -249,12 +283,12 @@
             if (players.length === 0) return alert("還沒有玩家鎖定號碼");
             const lucky = players[Math.floor(Math.random() * players.length)];
             await db.collection("game_state").doc(GAME_DOC).update({ luckyUser: lucky });
-            alert(`幸運兒是：${lucky}，請等待他選號`);
+            alert(`幸運兒是：${lucky}`);
         }
 
         async function submitLuckyNumber() {
             const num = parseInt(document.getElementById('lucky-input').value);
-            if (isNaN(num) || num < 1 || num > 25 || drawnHistory.includes(num)) return alert("請輸入有效且未開過的數字");
+            if (isNaN(num) || num < 1 || num > 25 || drawnHistory.includes(num)) return alert("無效或已開過");
             await db.collection("game_state").doc(GAME_DOC).update({
                 history: firebase.firestore.FieldValue.arrayUnion(num),
                 luckyUser: ""
@@ -262,9 +296,13 @@
         }
 
         async function resetGame() {
-            if(!confirm("確定要清除所有紀錄重來嗎？")) return;
+            if(!confirm("確定要重置嗎？")) return;
             await db.collection("game_state").doc(GAME_DOC).set({ history: [], isRolling: false, luckyUser: "" });
-            alert("遊戲已重置");
+            // 同時清除所有玩家的連線與鎖定狀態 (選做)
+            const batch = db.batch();
+            const pSnap = await db.collection("players").get();
+            pSnap.forEach(doc => batch.delete(doc.ref));
+            await batch.commit();
             location.reload();
         }
 
