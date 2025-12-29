@@ -3,41 +3,55 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>2025 尾牙賓果 - 穩定修正版</title>
+    <title>2025 尾牙大賓果 - 管理強化版</title>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 
     <style>
         :root { --primary: #d32f2f; --secondary: #ffc107; --bg: #f8f9fa; --success: #2e7d32; }
         body { font-family: sans-serif; margin: 0; background: var(--bg); text-align: center; color: #333; }
-        .page { display: none !important; padding: 20px; box-sizing: border-box; }
+        .page { display: none !important; padding: 20px; box-sizing: border-box; animation: fadeIn 0.4s; }
         .page.active { display: block !important; }
-        
-        .grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; max-width: 350px; margin: 15px auto; background: #fff; padding: 10px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        /* 賓果盤 */
+        .grid { 
+            display: grid; grid-template-columns: repeat(5, 1fr); 
+            gap: 6px; max-width: 350px; margin: 15px auto; 
+            background: #fff; padding: 10px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
         .cell { aspect-ratio: 1; border: 1px solid #eee; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; font-weight: bold; border-radius: 8px; background: #fff; }
         .cell.selected { background: var(--secondary); color: #b71c1c; }
-        .cell.bingo-line { background: var(--primary) !important; color: white !important; }
+        .cell.bingo-line { background: var(--primary); color: white; animation: pulse 1s infinite; }
 
-        button { padding: 15px 25px; font-size: 1.1rem; border: none; border-radius: 30px; background: var(--primary); color: white; cursor: pointer; margin: 8px 4px; }
-        button:disabled { background: #ccc !important; cursor: not-allowed; }
+        button { padding: 15px 25px; font-size: 1.1rem; border: none; border-radius: 30px; background: var(--primary); color: white; cursor: pointer; margin: 8px 4px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        button:disabled { background: #ccc; }
         input { padding: 12px; border-radius: 8px; border: 1px solid #ccc; width: 80%; max-width: 250px; margin-bottom: 10px; }
 
-        .big-number { font-size: 5.5rem; color: var(--primary); font-weight: bold; min-height: 120px; }
+        .big-number { font-size: 5.5rem; color: var(--primary); font-weight: bold; min-height: 120px; text-shadow: 2px 2px 4px rgba(0,0,0,0.1); }
         
-        /* 管理端名單區域 */
-        #admin-list-view { text-align: left; background: white; padding: 15px; border-radius: 10px; margin-top: 15px; display: none; border: 1px solid #ddd; }
-        .list-group { margin-bottom: 12px; }
-        .list-group-title { font-weight: bold; color: #d32f2f; border-bottom: 1px solid #eee; margin-bottom: 5px; }
-        .name-tag { display: inline-block; background: #eee; padding: 4px 8px; border-radius: 4px; margin: 2px; font-size: 0.8rem; }
-        .name-tag.weak { background: #fff9c4; border: 1px solid #f9a825; }
+        /* 管理端統計與名單 */
+        .stats-container { background: white; padding: 15px; border-radius: 10px; margin: 10px 0; }
+        .stats-table { width: 100%; border-collapse: collapse; }
+        .stats-table th, .stats-table td { border: 1px solid #eee; padding: 12px 2px; font-size: 0.85rem; }
+        .stat-val { font-size: 1.2rem; font-weight: bold; color: var(--primary); }
 
-        /* Switch */
-        .switch { position: relative; display: inline-block; width: 50px; height: 26px; vertical-align: middle; }
+        /* Switch 開關樣式 */
+        .switch-container { display: flex; align-items: center; justify-content: center; margin: 15px 0; gap: 10px; }
+        .switch { position: relative; display: inline-block; width: 50px; height: 26px; }
         .switch input { opacity: 0; width: 0; height: 0; }
         .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 34px; }
         .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
         input:checked + .slider { background-color: var(--success); }
         input:checked + .slider:before { transform: translateX(24px); }
+
+        #admin-list-view { text-align: left; background: white; padding: 15px; border-radius: 10px; margin-top: 15px; display: none; }
+        .list-group { margin-bottom: 10px; border-bottom: 1px solid #f0f0f0; padding-bottom: 5px; }
+        .list-group-title { font-weight: bold; color: #666; font-size: 0.8rem; margin-bottom: 5px; }
+        .name-tag { display: inline-block; background: #f0f0f0; padding: 4px 8px; border-radius: 4px; margin: 2px; font-size: 0.8rem; }
+        .name-tag.weak { border: 1px solid var(--secondary); background: #fffde7; }
+
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
     </style>
 </head>
 <body>
@@ -45,38 +59,60 @@
     <div onclick="handleAdminClick()" style="position:fixed; top:0; left:0; width:50px; height:50px; z-index:9999;"></div>
 
     <div id="page-login" class="page active">
-        <h1 style="color:var(--primary); margin-top: 15vh;">🧧 2025 賓果</h1>
-        <input type="text" id="username" placeholder="輸入姓名">
+        <h1 style="color:var(--primary); margin-top: 20vh;">🧧 2025 尾牙賓果</h1>
+        <input type="text" id="username" placeholder="您的姓名">
         <br>
-        <button onclick="joinGame()">確認進入</button>
+        <button onclick="joinGame()">進入遊戲</button>
     </div>
 
     <div id="page-game" class="page">
-        <div id="user-info" style="font-size:0.8rem;"></div>
+        <div id="user-info" style="font-size:0.8rem; color:#888;"></div>
         <div class="big-number" id="draw-number-player">READY</div>
-        <div id="status-text">請保存號碼</div>
+        <div id="status-text">請保存號碼開始遊戲</div>
         <div class="grid" id="bingo-grid"></div>
         <div id="setup-controls">
-            <button id="btn-re-generate" onclick="generateBoard()">隨機換號</button>
-            <button id="btn-lock" onclick="lockBoard()" style="background:var(--success)">保存號碼</button>
+            <button onclick="generateBoard()">隨機換號</button>
+            <button onclick="lockBoard()" style="background:var(--success)">保存號碼</button>
         </div>
-        <div id="lucky-panel" style="display:none; background:#fff9c4; padding:10px; border:2px dashed orange; border-radius:10px;">
-            <p>🌟 幸運兒選號：</p>
+        <div id="lucky-panel" style="display:none; background:#fff9c4; padding:15px; border:2px dashed #f9a825; border-radius:10px;">
+            <p>🌟 您被選中轉運！請輸入號碼：</p>
             <input type="number" id="lucky-input" min="1" max="25" style="width:60px;">
-            <button onclick="submitLuckyNumber()">送出</button>
+            <button onclick="submitLuckyNumber()" style="background:#f9a825">開獎</button>
         </div>
     </div>
 
     <div id="page-admin" class="page">
-        <h2>管理者主控台</h2>
-        <div class="big-number" id="draw-number-admin">READY</div>
-        <button id="btn-draw" onclick="drawRandom()">🎲 隨機抽取</button>
-        <button onclick="pickLuckyUser()" style="background:#ef6c00">🎯 抽幸運兒</button>
+        <h2 style="background: #333; color: white; padding: 15px; margin: -20px -20px 20px -20px;">管理者控制台</h2>
         
-        <div style="margin: 20px 0;">
-            <span>顯示玩家名單</span>
+        <div class="big-number" id="draw-number-admin">READY</div>
+
+        <div style="display:flex; justify-content: space-around; margin: 10px 0;">
+            <div>在線: <span id="player-count">0</span></div>
+            <div>總註冊: <span id="total-reg">0</span></div>
+        </div>
+
+        <div class="stats-container">
+            <table class="stats-table">
+                <thead><tr><th>1個</th><th>2個</th><th>3個</th><th>4個</th><th style="color:red">賓果</th></tr></thead>
+                <tbody>
+                    <tr>
+                        <td id="stat-1" class="stat-val">0</td>
+                        <td id="stat-2" class="stat-val">0</td>
+                        <td id="stat-3" class="stat-val">0</td>
+                        <td id="stat-4" class="stat-val">0</td>
+                        <td id="stat-5" class="stat-val">0</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <button id="btn-draw" onclick="drawRandom()">🎲 隨機抽取下一號</button>
+        <button onclick="pickLuckyUser()" style="background:#ef6c00">🎯 抽幸運兒選號</button>
+
+        <div class="switch-container">
+            <span>顯示玩家明細名單</span>
             <label class="switch">
-                <input type="checkbox" id="list-toggle">
+                <input type="checkbox" id="list-toggle" onchange="toggleListView()">
                 <span class="slider"></span>
             </label>
         </div>
@@ -84,8 +120,8 @@
         <div id="admin-list-view">
             <div id="list-content"></div>
         </div>
-        
-        <button onclick="resetGame()" style="background:#555; margin-top:50px;">重置遊戲</button>
+
+        <button onclick="resetGame()" style="background:#555; font-size: 0.7rem; margin-top:20px;">重置遊戲</button>
     </div>
 
     <script>
@@ -102,61 +138,46 @@
         const db = firebase.firestore();
         const GAME_DOC = "current_game";
 
-        let myName = "", myBoard = [], isLocked = false, drawnHistory = [], rollingInterval = null;
+        let myName = "", myBoard = [], isLocked = false, drawnHistory = [], rollingInterval = null, adminClickCount = 0, lastClickTime = 0;
         const winConditions = [
             [0,1,2,3,4],[5,6,7,8,9],[10,11,12,13,14],[15,16,17,18,19],[20,21,22,23,24],
             [0,5,10,15,20],[1,6,11,16,21],[2,7,12,17,22],[3,8,13,18,23],[4,9,14,19,24],
             [0,6,12,18,24],[4,8,12,16,20]
         ];
 
-        // --- 核心計算：每條線獨立計算最長連續，再取最大值 ---
         function calculateMaxConsecutive(board, history) {
-            if (!board || board.length < 25) return 0;
             let maxGlobal = 0;
             winConditions.forEach(indices => {
-                let currentStreak = 0;
-                let maxInLine = 0;
+                let cur = 0, mLine = 0;
                 indices.forEach(idx => {
-                    if (history.includes(board[idx])) {
-                        currentStreak++;
-                        if (currentStreak > maxInLine) maxInLine = currentStreak;
-                    } else {
-                        currentStreak = 0;
-                    }
+                    if (history.includes(board[idx])) { cur++; if (cur > mLine) mLine = cur; }
+                    else cur = 0;
                 });
-                if (maxInLine > maxGlobal) maxGlobal = maxInLine;
+                if (mLine > maxGlobal) maxGlobal = mLine;
             });
             return maxGlobal;
+        }
+
+        function handleAdminClick() {
+            const now = Date.now();
+            if (now - lastClickTime > 2000) adminClickCount = 0;
+            adminClickCount++; lastClickTime = now;
+            if (adminClickCount >= 5) {
+                const pin = prompt("管理者 PIN：");
+                if (pin === "2025") switchPage('page-admin');
+                adminClickCount = 0;
+            }
         }
 
         async function joinGame() {
             const nameInput = document.getElementById('username').value.trim();
             if (!nameInput) return alert("請輸入姓名");
             myName = nameInput;
-            
-            // 讀取進度：從 Firebase 檢查是否已有此人且已鎖定
-            const doc = await db.collection("players").doc(myName).get();
-            if (doc.exists) {
-                const data = doc.data();
-                if (data.locked) {
-                    myBoard = data.board;
-                    isLocked = true;
-                    document.getElementById('setup-controls').style.display = 'none';
-                }
-            }
-
             document.getElementById('user-info').innerText = `玩家：${myName}`;
             switchPage('page-game');
-            if (!isLocked && myBoard.length === 0) generateBoard();
-            else renderBoard();
-
-            // 更新在線狀態
-            await db.collection("players").doc(myName).set({ 
-                name: myName, 
-                lastSeen: Date.now() 
-            }, { merge: true });
-            
-            setInterval(() => { if(myName) db.collection("players").doc(myName).update({ lastSeen: Date.now() }); }, 10000);
+            await db.collection("players").doc(myName).set({ name: myName, lastSeen: Date.now(), locked: false, maxConsecutive: 0 }, { merge: true });
+            generateBoard();
+            setInterval(() => { if(myName) db.collection("players").doc(myName).update({ lastSeen: Date.now() }); }, 15000);
         }
 
         function generateBoard() {
@@ -167,6 +188,7 @@
 
         function renderBoard() {
             const container = document.getElementById('bingo-grid');
+            if(!container) return;
             container.innerHTML = "";
             myBoard.forEach(num => {
                 const cell = document.createElement('div');
@@ -174,18 +196,145 @@
                 cell.innerText = num;
                 container.appendChild(cell);
             });
-            
-            // 渲染連線視覺
+            checkBingoVisual();
+        }
+
+        function checkBingoVisual() {
             winConditions.forEach(c => {
                 if (c.every(idx => drawnHistory.includes(myBoard[idx]))) {
-                    c.forEach(idx => container.children[idx].classList.add('bingo-line'));
+                    c.forEach(idx => document.getElementById('bingo-grid').children[idx].classList.add('bingo-line'));
                     document.getElementById('status-text').innerText = "🎉 賓果！";
                 }
             });
         }
 
         async function lockBoard() {
-            if (isLocked) return;
             const bStr = myBoard.join(',');
             const snap = await db.collection("players").where("boardStr", "==", bStr).get();
-            if (!snap.empty) { alert("此盤面已被使用，請更換！"); return generateBoard(); }
+            if (!snap.empty) { alert("重複，洗牌中"); return generateBoard(); }
+            if (!confirm("鎖定？")) return;
+            isLocked = true;
+            document.getElementById('setup-controls').style.display = 'none';
+            await db.collection("players").doc(myName).update({ board: myBoard, boardStr: bStr, locked: true, maxConsecutive: calculateMaxConsecutive(myBoard, drawnHistory) });
+        }
+
+        function initGlobalMonitor() {
+            db.collection("game_state").doc(GAME_DOC).onSnapshot(doc => {
+                const data = doc.data(); if (!data) return;
+                drawnHistory = data.history || [];
+                if (data.isRolling) {
+                    startRollingEffect();
+                } else {
+                    stopRollingEffect();
+                    const lastNum = drawnHistory[drawnHistory.length - 1] || "READY";
+                    document.getElementById('draw-number-player').innerText = lastNum;
+                    document.getElementById('draw-number-admin').innerText = lastNum;
+                    renderBoard();
+                    if (isLocked) db.collection("players").doc(myName).update({ maxConsecutive: calculateMaxConsecutive(myBoard, drawnHistory) });
+                }
+                document.getElementById('lucky-panel').style.display = (data.luckyUser === myName) ? 'block' : 'none';
+            });
+
+            db.collection("players").onSnapshot(snap => {
+                const now = Date.now(), stats = { 1:0, 2:0, 3:0, 4:0, 5:0 }, listData = { 1:[], 2:[], 3:[], 4:[], 5:[] };
+                let online = 0, allPlayers = [];
+                
+                snap.forEach(doc => {
+                    const p = doc.data();
+                    if (p.lastSeen && (now - p.lastSeen < 120000)) online++;
+                    if (p.locked) {
+                        const score = Math.min(p.maxConsecutive || 0, 5);
+                        if (score >= 1) { stats[score]++; listData[score].push(p.name); }
+                        allPlayers.push(p);
+                    }
+                });
+
+                document.getElementById('player-count').innerText = online;
+                document.getElementById('total-reg').innerText = snap.size;
+                for (let i=1; i<=5; i++) document.getElementById(`stat-${i}`).innerText = stats[i];
+                
+                // 更新名單內容 (無論是否顯示)
+                updateListUI(listData, allPlayers);
+            });
+        }
+
+        function updateListUI(listData, allPlayers) {
+            const container = document.getElementById('list-content');
+            container.innerHTML = "";
+            
+            // 找出幸運兒候選池 (分數最小的前 15 名)
+            allPlayers.sort((a, b) => a.maxConsecutive - b.maxConsecutive);
+            const weakNames = allPlayers.slice(0, 15).map(p => p.name);
+
+            for (let i = 5; i >= 1; i--) {
+                if (listData[i].length === 0) continue;
+                const div = document.createElement('div');
+                div.className = 'list-group';
+                div.innerHTML = `<div class="list-group-title">${i === 5 ? '賓果/聽牌' : i + ' 個連續'} (${listData[i].length}人)</div>`;
+                listData[i].forEach(name => {
+                    const isWeak = weakNames.includes(name);
+                    div.innerHTML += `<span class="name-tag ${isWeak ? 'weak' : ''}">${name}${isWeak ? '⭐' : ''}</span>`;
+                });
+                container.appendChild(div);
+            }
+        }
+
+        function toggleListView() {
+            const isVisible = document.getElementById('list-toggle').checked;
+            document.getElementById('admin-list-view').style.display = isVisible ? 'block' : 'none';
+        }
+
+        async function drawRandom() {
+            document.getElementById('btn-draw').disabled = true;
+            await db.collection("game_state").doc(GAME_DOC).update({ isRolling: true, luckyUser: "" });
+            setTimeout(async () => {
+                const rem = Array.from({length: 25}, (_, i) => i + 1).filter(n => !drawnHistory.includes(n));
+                if (rem.length === 0) return alert("結束");
+                const pick = rem[Math.floor(Math.random() * rem.length)];
+                await db.collection("game_state").doc(GAME_DOC).update({ history: firebase.firestore.FieldValue.arrayUnion(pick), isRolling: false });
+                document.getElementById('btn-draw').disabled = false;
+            }, 2500);
+        }
+
+        async function pickLuckyUser() {
+            const snap = await db.collection("players").where("locked", "==", true).get();
+            let players = []; snap.forEach(doc => players.push(doc.data()));
+            if (players.length === 0) return;
+            players.sort((a, b) => a.maxConsecutive - b.maxConsecutive);
+            const pool = players.slice(0, 15);
+            const lucky = pool[Math.floor(Math.random() * pool.length)];
+            await db.collection("game_state").doc(GAME_DOC).update({ luckyUser: lucky.name });
+            alert("幸運兒：" + lucky.name);
+        }
+
+        async function submitLuckyNumber() {
+            const val = parseInt(document.getElementById('lucky-input').value);
+            if (isNaN(val) || drawnHistory.includes(val)) return alert("錯誤");
+            await db.collection("game_state").doc(GAME_DOC).update({ history: firebase.firestore.FieldValue.arrayUnion(val), luckyUser: "" });
+        }
+
+        async function resetGame() {
+            if (!confirm("重置？")) return;
+            const batch = db.batch();
+            const pSnap = await db.collection("players").get();
+            pSnap.forEach(d => batch.delete(d.ref));
+            batch.set(db.collection("game_state").doc(GAME_DOC), { history: [], isRolling: false, luckyUser: "" });
+            await batch.commit();
+            location.reload();
+        }
+
+        function switchPage(id) { document.querySelectorAll('.page').forEach(p => p.classList.remove('active')); document.getElementById(id).classList.add('active'); }
+        function startRollingEffect() {
+            if (rollingInterval) return;
+            rollingInterval = setInterval(() => {
+                const n = Math.floor(Math.random() * 25) + 1;
+                document.getElementById('draw-number-player').innerText = n;
+                document.getElementById('draw-number-admin').innerText = n;
+            }, 80);
+        }
+        function stopRollingEffect() { clearInterval(rollingInterval); rollingInterval = null; }
+
+        window.onload = () => { switchPage('page-login'); initGlobalMonitor(); };
+    </script>
+</body>
+</html>
