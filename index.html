@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>2025 尾牙賓果 - 可直接貼上</title>
+<title>2025 尾牙賓果 - 位置唯一版</title>
 
 <!-- Firebase client SDK (compat 9) -->
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
@@ -148,6 +148,7 @@ function renderBoard(){
 /* ===== client actions ===== */
 function generateBoard(){
   if(isLocked) return;
+  // 產生 1..25 的亂序排列（位置敏感）
   myBoard = Array.from({length:25},(_,i)=>i+1).sort(()=>Math.random()-0.5);
   renderBoard();
 }
@@ -169,7 +170,7 @@ async function joinGame(){
   switchPage('page-game');
   if(!isLocked && myBoard.length===0) generateBoard(); else renderBoard();
 
-  // create or update player with server timestamp via client write (serverTimestamp will be set by Firestore)
+  // create or update player with server timestamp via client write
   await db.collection('players').doc(myName).set({ name: myName, lastSeen: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
 
   // heartbeat every 15s
@@ -178,25 +179,38 @@ async function joinGame(){
   initGlobalMonitor();
 }
 
-/* ===== lockBoard using client-side transaction to avoid race ===== */
+/* ===== lockBoard using position-sensitive key with backward-compat check ===== */
 async function lockBoard() {
   if (isLocked) return;
   if (!confirm('保存後不可更改，確定嗎？')) return;
 
+  // 位置敏感的 key（不要排序）
+  const boardKey = myBoard.join(',');
+  // 也同時產生舊版的排序 key（若 DB 之前用過 sortedKey，當作相容檢查）
   const sortedKey = toSortedKey(myBoard);
-  const uniqueRef = db.collection('uniqueCards').doc(sortedKey);
+
+  const uniqueRef = db.collection('uniqueCards').doc(boardKey);
+  const sortedRef = db.collection('uniqueCards').doc(sortedKey); // backward-compat check
   const playerRef = db.collection('players').doc(myName);
 
   try {
     await db.runTransaction(async (tx) => {
+      // 檢查位置敏感 key 是否存在
       const uSnap = await tx.get(uniqueRef);
       if (uSnap.exists) {
         throw new Error('CARD_COLLISION');
       }
+      // 檢查舊的排序 key 是否存在（避免舊資料造成衝突）
+      const sSnap = await tx.get(sortedRef);
+      if (sSnap.exists) {
+        throw new Error('CARD_COLLISION_OLDKEY');
+      }
+
+      // 若都不存在，建立位置敏感的 unique doc 並鎖定玩家
       tx.set(uniqueRef, { ownerPlayerId: myName, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
       tx.set(playerRef, {
         board: myBoard,
-        boardStr: sortedKey,
+        boardStr: boardKey,        // 位置敏感字串
         locked: true,
         lockedAt: firebase.firestore.FieldValue.serverTimestamp(),
         maxConsecutive: calculateMaxConsecutive(myBoard, drawnHistory)
@@ -207,11 +221,11 @@ async function lockBoard() {
     alert('鎖定成功');
     renderBoard();
   } catch (err) {
-    if (err.message && err.message.includes('CARD_COLLISION')) {
-      alert('盤面重複，系統將自動重新產生');
+    console.error('lockBoard error', err);
+    if (err.message && (err.message.includes('CARD_COLLISION') || err.message.includes('CARD_COLLISION_OLDKEY'))) {
+      alert('盤面重複，系統將自動重新產生新盤面');
       generateBoard();
     } else {
-      console.error(err);
       alert('鎖定失敗，請稍後再試');
     }
   }
