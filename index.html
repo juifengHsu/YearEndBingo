@@ -13,7 +13,7 @@
   </style>
 </head>
 <body>
-  <h1>Bingo 活動入口</h1>
+  <h1>Bingo 活動入口 <small>v1.0.0</small></h1>
 
   <!-- 玩家匿名登入 -->
   <button id="anonLogin">玩家匿名登入</button>
@@ -51,9 +51,13 @@ UID：<span id="uid">—</span>
   <script type="module">
     // 🔑 換成您的 Firebase 專案設定
     const firebaseConfig = {
-      apiKey: "YOUR_API_KEY",
-      authDomain: "YOUR_AUTH_DOMAIN",
-      projectId: "YOUR_PROJECT_ID",
+      apiKey: "AIzaSyCLTGzCZUQm2ZzqfdBHk9D4xYpagaVtX7w",
+      authDomain: "yearendbingo.firebaseapp.com",
+      projectId: "yearendbingo",
+      storageBucket: "yearendbingo.firebasestorage.app",
+      messagingSenderId: "563353011392",
+      appId: "1:563353011392:web:717976a176bc22a04d5925",
+      measurementId: "G-M6EVYSPNJ9"
     };
 
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
@@ -167,4 +171,5 @@ UID：<span id="uid">—</span>
     });
   </script>
 </body>
+  <footer style="margin-top:20px; font-size:0.9em; color:#555;"> 版本：v1.0.0　｜　最後更新：2025-12-29 </footer>
 </html>
