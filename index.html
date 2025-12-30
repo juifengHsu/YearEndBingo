@@ -81,11 +81,20 @@
             <div id="display-name" style="color:var(--muted); margin-bottom:5px;">未登入</div>
             
             <div id="login-section">
-                <input type="text" id="username-input" placeholder="請輸入您的真實姓名">
+                <input type="text" id="username-input" placeholder="請輸入您的暱稱">
                 <button class="btn" onclick="playerLogin()" style="width:100%">進入遊戲</button>
-                <div style="font-size:0.8rem; color:#888; margin-top:10px;">(若要管理，請點擊左上標題 5 次)</div>
+                </div>
+        
+            <div id="admin-active-msg" style="display:none; text-align:center; padding:40px 0;">
+                <h2 style="color:var(--dark); margin:0;">🛡️</h2>
+                <h3 style="color:var(--dark); margin:10px 0;">管理者模式運作中</h3>
+                <p style="color:#666; font-size:0.9rem;">請使用右側面板進行控制</p>
             </div>
-
+        
+            <div id="game-section" style="display:none;">
+                </div>
+        </div>
+            
             <div id="game-section" style="display:none;">
                 <div id="current-draw" class="big-number">READY</div>
                 <div id="status-text" style="color:var(--success); font-weight:bold; height:24px;"></div>
@@ -369,6 +378,13 @@
                 document.getElementById('admin-panel').style.display = 'flex';
                 document.getElementById('admin-login-modal').style.display = 'none';
                 document.getElementById('admin-indicator').style.display = 'block';
+
+                // ★ 新增這三行：隱藏登入框，顯示管理者提示 ★
+                document.getElementById('login-section').style.display = 'none';      // 隱藏登入框
+                document.getElementById('admin-active-msg').style.display = 'block';  // 顯示管理者圖示
+                document.getElementById('display-name').innerText = "管理者";          // 修改左上角狀態
+
+                
                 // 也要啟動監聽，不然管理者看不到數據
                 startListeners(); 
             } else {
