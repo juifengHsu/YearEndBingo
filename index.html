@@ -111,17 +111,15 @@
     </div>
   </div>
 
-  <!-- Firebase SDKs (modular) -->
+  <!-- Firebase SDKs (v12 modular) -->
   <script type="module">
     // ---------------------------
-    // Firebase config - 填入您的專案設定
+    // Firebase config - 已替換為你提供的 Web app config
+    // 請確認這些值與 Firebase Console 的 Web app 設定一致
     // ---------------------------
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-    import {
-      getAuth,
-      onAuthStateChanged,
-      signInAnonymously
-    } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
+    import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-analytics.js";
+    import { getAuth, onAuthStateChanged, signInAnonymously } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js";
     import {
       getFirestore,
       doc,
@@ -139,16 +137,22 @@
       serverTimestamp,
       deleteDoc,
       getDocs
-    } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+    } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
 
     const firebaseConfig = {
-      apiKey: "YOUR_API_KEY",
-      authDomain: "YOUR_AUTH_DOMAIN",
-      projectId: "YOUR_PROJECT_ID",
-      // ... 其餘欄位
+      apiKey: "AIzaSyCLTGzCZUQm2ZzqfdBHk9D4xYpagaVtX7w",
+      authDomain: "yearendbingo.firebaseapp.com",
+      projectId: "yearendbingo",
+      storageBucket: "yearendbingo.appspot.com", // 修正為 .appspot.com
+      messagingSenderId: "563353011392",
+      appId: "1:563353011392:web:717976a176bc22a04d5925",
+      measurementId: "G-M6EVYSPNJ9"
     };
 
     const app = initializeApp(firebaseConfig);
+    // analytics 在 GitHub Pages 上若未啟用 measurement 或受限制可忽略錯誤
+    try { getAnalytics(app); } catch(e){ console.warn('Analytics init skipped', e); }
+
     const auth = getAuth(app);
     const db = getFirestore(app);
 
@@ -290,7 +294,6 @@
     // Auth & Initialization
     // ---------------------------
     async function initAuth() {
-      // Sign in anonymously if not signed in
       onAuthStateChanged(auth, async (user) => {
         if (user) {
           currentUser = user;
@@ -299,14 +302,13 @@
           await initPlayerState();
           startHeartbeat();
           subscribeGameState();
-          subscribePendingChoices();
-          subscribeAdminPending(); // admin view of pending
+          subscribeAdminPending();
         } else {
           try {
             await signInAnonymously(auth);
           } catch (err) {
             console.error('Anonymous sign-in failed', err);
-            alert('匿名登入失敗，請檢查網路與 Firebase 設定');
+            alert('匿名登入失敗，請確認 Firebase config 與 Anonymous Auth 是否啟用');
           }
         }
       });
@@ -316,30 +318,29 @@
     // Initialize player state: load existing players/{uid} if exists
     // ---------------------------
     async function initPlayerState() {
-      const snap = await getDoc(currentPlayerDocRef);
-      if (snap.exists()) {
-        const data = snap.data();
-        playerNameInput.value = data.name || '';
-        localBoard = data.board || generateBoard();
-        locked = !!data.locked;
-        maxConsecutive = data.maxConsecutive || 0;
-        lockedLabel.textContent = locked ? '已鎖定' : '';
-        renderBoard();
-        maxConsecutiveEl.textContent = maxConsecutive;
-      } else {
-        // new player
-        localBoard = generateBoard();
-        locked = false;
-        renderBoard();
+      try {
+        const snap = await getDoc(currentPlayerDocRef);
+        if (snap.exists()) {
+          const data = snap.data();
+          playerNameInput.value = data.name || '';
+          localBoard = data.board || generateBoard();
+          locked = !!data.locked;
+          maxConsecutive = data.maxConsecutive || 0;
+          lockedLabel.textContent = locked ? '已鎖定' : '';
+          renderBoard();
+          maxConsecutiveEl.textContent = maxConsecutive;
+        } else {
+          localBoard = generateBoard();
+          locked = false;
+          renderBoard();
+        }
+      } catch (err) {
+        console.warn('initPlayerState error', err);
       }
     }
 
     // ---------------------------
     // Save board with transaction to ensure uniqueness
-    // Implementation detail:
-    // - We attempt to create a reservation doc at board_index/{boardStr}
-    // - If creation succeeds, we write players/{uid}
-    // Note: Ensure your Firestore rules allow writes to board_index if you use this approach.
     // ---------------------------
     async function saveBoardTransaction() {
       if (!currentUser) return alert('尚未登入');
@@ -349,7 +350,7 @@
       const boardStr = boardToStr(localBoard);
       const boardIndexRef = doc(db, 'board_index', boardStr);
       const playerRef = currentPlayerDocRef;
-      const auditRef = collection(db, 'audit_logs');
+      const auditCol = collection(db, 'audit_logs');
 
       try {
         await runTransaction(db, async (tx) => {
@@ -357,9 +358,7 @@
           if (idxSnap.exists()) {
             throw new Error('盤面重複，請重新換號');
           }
-          // create index reservation
           tx.set(boardIndexRef, { owner: currentUser.uid, createdAt: serverTimestamp() });
-          // write player doc
           tx.set(playerRef, {
             name,
             board: localBoard,
@@ -369,8 +368,7 @@
             lastSeen: Date.now(),
             version: 1
           });
-          // write audit log
-          tx.set(doc(auditRef), {
+          tx.set(doc(auditCol), {
             action: 'save_board',
             detail: { uid: currentUser.uid, name, boardStr },
             timestamp: serverTimestamp()
@@ -385,7 +383,7 @@
     }
 
     // ---------------------------
-    // Lock board (update players/{uid}.locked = true)
+    // Lock board
     // ---------------------------
     async function lockBoard() {
       if (!currentUser) return alert('尚未登入');
@@ -395,12 +393,10 @@
           if (!pSnap.exists()) throw new Error('請先保存盤面');
           const data = pSnap.data();
           if (data.locked) throw new Error('盤面已鎖定');
-          // set locked true and increment version
           tx.update(currentPlayerDocRef, {
             locked: true,
             version: (data.version || 1) + 1
           });
-          // audit
           tx.set(doc(collection(db, 'audit_logs')), {
             action: 'lock_board',
             detail: { uid: currentUser.uid, boardStr: data.boardStr },
@@ -429,7 +425,6 @@
           playerName: playerNameInput.value || '',
           timestamp: serverTimestamp()
         });
-        // audit
         await addDoc(collection(db, 'audit_logs'), {
           action: 'submit_pending_choice',
           detail: { uid: currentUser.uid, number: Number(number) },
@@ -457,12 +452,9 @@
           const gs = gsSnap.exists() ? gsSnap.data() : { history: [] };
           const hist = gs.history || [];
           if (hist.includes(number)) throw new Error('號碼已被開出');
-          // push number
           const newHistory = hist.concat([number]);
           tx.update(gameStateRef, { history: newHistory });
-          // delete pending
           tx.delete(pendingRef);
-          // audit
           tx.set(doc(collection(db, 'audit_logs')), {
             action: 'confirm_pending',
             detail: { uid, number },
@@ -477,20 +469,16 @@
     }
 
     // ---------------------------
-    // Admin: draw a random number (isRolling animation -> transaction push)
+    // Admin: draw a random number
     // ---------------------------
     async function adminDrawNumber() {
       const gameStateRef = doc(db, 'game_state', 'current_game');
       try {
-        // set isRolling true (admin-only write)
         await updateDoc(gameStateRef, { isRolling: true });
       } catch (e) {
-        // if doc doesn't exist, create it
         await setDoc(gameStateRef, { history: [], isRolling: true, luckyUser: '', status: 'playing' });
       }
 
-      // simple animation: show random numbers for 2s
-      const start = Date.now();
       const anim = setInterval(() => {
         const r = Math.floor(Math.random() * 25) + 1;
         rollDisplay.textContent = r;
@@ -498,7 +486,6 @@
 
       setTimeout(async () => {
         clearInterval(anim);
-        // transaction: pick a number not in history
         try {
           await runTransaction(db, async (tx) => {
             const gsSnap = await tx.get(gameStateRef);
@@ -519,17 +506,15 @@
         } catch (err) {
           console.error('adminDrawNumber transaction error', err);
           alert('抽號失敗：' + (err.message || err));
-          // ensure isRolling false
           try { await updateDoc(gameStateRef, { isRolling: false }); } catch(e){}
         }
       }, 2000);
     }
 
     // ---------------------------
-    // Admin: pick lucky user (locked=true 且 maxConsecutive 最小的前 15 名)
+    // Admin: pick lucky user
     // ---------------------------
     async function adminPickLucky() {
-      // query locked players and sort by maxConsecutive asc, limit 15
       try {
         const q = query(collection(db, 'players'), orderBy('maxConsecutive', 'asc'), limit(15));
         const snaps = await getDocs(q);
@@ -538,7 +523,6 @@
           const d = s.data();
           if (d.locked) candidates.push({ uid: s.id, name: d.name, maxConsecutive: d.maxConsecutive || 0 });
         });
-        // show candidates
         candidatesList.innerHTML = '';
         candidates.forEach(c => {
           const li = document.createElement('li');
@@ -547,12 +531,9 @@
         });
         candidatesArea.classList.remove('hidden');
 
-        // pick one randomly among candidates
         if (candidates.length === 0) return alert('沒有符合條件的候選人');
         const pick = candidates[Math.floor(Math.random() * candidates.length)];
-        // update game_state.luckyUser
         await updateDoc(doc(db, 'game_state', 'current_game'), { luckyUser: pick.uid });
-        // audit
         await addDoc(collection(db, 'audit_logs'), {
           action: 'pick_lucky',
           detail: { uid: pick.uid, name: pick.name },
@@ -566,30 +547,25 @@
     }
 
     // ---------------------------
-    // Admin: reset game (double confirm)
+    // Admin: reset game
     // ---------------------------
     async function adminResetGame() {
       confirmResetModal.classList.remove('hidden');
     }
     async function doAdminResetGame() {
-      // Note: batch deletes may be limited; for event small scale this is acceptable.
       try {
-        // delete players
         const playersSnap = await getDocs(collection(db, 'players'));
         for (const p of playersSnap.docs) {
           await deleteDoc(doc(db, 'players', p.id));
         }
-        // delete pending_choices
         const pendSnap = await getDocs(collection(db, 'pending_choices'));
         for (const p of pendSnap.docs) {
           await deleteDoc(doc(db, 'pending_choices', p.id));
         }
-        // delete audit_logs
         const auditSnap = await getDocs(collection(db, 'audit_logs'));
         for (const a of auditSnap.docs) {
           await deleteDoc(doc(db, 'audit_logs', a.id));
         }
-        // reset game_state
         await setDoc(doc(db, 'game_state', 'current_game'), { history: [], isRolling: false, luckyUser: '', status: 'waiting' });
         alert('遊戲已重置');
         confirmResetModal.classList.add('hidden');
@@ -609,56 +585,46 @@
         history = data.history || [];
         historyListEl.textContent = history.join(', ') || '—';
         updateHitsUI();
-        // update maxConsecutive for current player
         if (currentUser && localBoard && localBoard.length === 25) {
           const newMax = calcMaxConsecutive(localBoard, history);
           maxConsecutiveEl.textContent = newMax;
-          // write back to players/{uid}.maxConsecutive (player can update own doc)
           updateDoc(currentPlayerDocRef, { maxConsecutive: newMax }).catch(e => {
-            // if update fails (e.g., doc missing), ignore for now
             console.warn('update maxConsecutive failed', e);
           });
         }
-        // show rolling state
         rollDisplay.textContent = data.isRolling ? '...' : (history[history.length-1] ?? '—');
-        // if current user is luckyUser, show modal
         if (data.luckyUser && currentUser && data.luckyUser === currentUser.uid) {
-          // show lucky modal
           luckyModal.classList.remove('hidden');
         } else {
           luckyModal.classList.add('hidden');
         }
+      }, (err) => {
+        console.warn('game_state onSnapshot error', err);
       });
     }
 
-    // pending_choices subscription for admin view
-    function subscribePendingChoices() {
-      // players can read their own pending; admin will see all via adminPending subscription
-      const pendingRef = doc(db, 'pending_choices', currentUser ? currentUser.uid : '__none__');
-      // no global subscription here for players
-    }
-
-    // admin pending subscription (admin-only)
     function subscribeAdminPending() {
-      // attempt to listen to all pending choices (admin only)
       const pendCol = collection(db, 'pending_choices');
       onSnapshot(pendCol, (snap) => {
         pendingList.innerHTML = '';
         snap.forEach(d => {
           const data = d.data();
           const li = document.createElement('li');
-          li.textContent = `${d.id} — ${data.number} (${new Date(data.timestamp?.toMillis?.() ?? Date.now()).toLocaleTimeString()})`;
+          const ts = data.timestamp && data.timestamp.toDate ? data.timestamp.toDate().toLocaleTimeString() : '';
+          li.textContent = `${d.id} — ${data.number} ${ts}`;
           const btn = document.createElement('button');
           btn.textContent = '確認';
           btn.onclick = () => adminConfirmPending(d.id);
           li.appendChild(btn);
           pendingList.appendChild(li);
         });
+      }, (err) => {
+        console.warn('pending_choices onSnapshot error', err);
       });
     }
 
     // ---------------------------
-    // Heartbeat: update lastSeen every 15s
+    // Heartbeat
     // ---------------------------
     function startHeartbeat() {
       if (!currentUser) return;
@@ -667,7 +633,6 @@
         try {
           await updateDoc(currentPlayerDocRef, { lastSeen: Date.now() });
         } catch (err) {
-          // if doc doesn't exist, create minimal doc
           try {
             await setDoc(currentPlayerDocRef, { name: playerNameInput.value || '', board: localBoard, boardStr: boardToStr(localBoard), locked: locked, maxConsecutive: maxConsecutive, lastSeen: Date.now(), version: 1 });
           } catch(e){}
@@ -703,7 +668,6 @@
       lockBoard();
     });
 
-    // board cell click: allow manual swap if not locked
     boardGrid.addEventListener('click', (e) => {
       if (locked) return;
       const cell = e.target.closest('.cell');
@@ -718,7 +682,6 @@
       renderBoard();
     });
 
-    // Lucky modal
     submitLuckyBtn.addEventListener('click', () => {
       const n = Number(luckyNumberInput.value);
       if (!Number.isInteger(n) || n < 1 || n > 25) return alert('請輸入 1-25 的整數');
@@ -729,7 +692,6 @@
       luckyModal.classList.add('hidden');
     });
 
-    // Admin controls
     adminDrawBtn.addEventListener('click', () => {
       adminDrawNumber();
     });
@@ -748,7 +710,6 @@
 
     showListToggle.addEventListener('change', () => {
       if (showListToggle.checked) {
-        // show detailed list (requires admin read)
         loadPlayerList();
       } else {
         statsArea.innerHTML = '';
@@ -771,13 +732,11 @@
       }
     }
 
-    // Admin hidden entry: left top 80x80 area click 5 times within 3s -> prompt PIN 2025
+    // Admin hidden entry
     document.addEventListener('click', (e) => {
-      // approximate left-top 80x80 area
       if (e.clientX <= 80 && e.clientY <= 80) {
         const now = Date.now();
         clickTimestamps.push(now);
-        // keep last 5
         if (clickTimestamps.length > 5) clickTimestamps.shift();
         if (clickTimestamps.length === 5 && (now - clickTimestamps[0]) <= 3000) {
           const pin = prompt('輸入管理員 PIN');
@@ -794,22 +753,11 @@
     });
 
     // ---------------------------
-    // Initial render & start
+    // Start
     // ---------------------------
-    // prepare empty board UI
     localBoard = generateBoard();
     renderBoard();
     initAuth();
-
-    // ---------------------------
-    // Notes / Implementation caveats (in-code comments)
-    // - This index.html implements the client-side flows described in your spec:
-    //   - Anonymous auth, players/{uid} create/update, heartbeat, maxConsecutive calc on history updates.
-    //   - Two-step lucky flow: admin sets game_state.luckyUser -> lucky user submits pending_choices/{uid} -> admin confirms -> transaction pushes to game_state.history.
-    // - Uniqueness reservation uses a 'board_index/{boardStr}' document. Ensure your Firestore security rules allow writes to this collection or adapt to your rules.
-    // - Security: audit_logs are written for key actions. Your rules should allow authenticated users to create audit_logs (as in your rules).
-    // - Admin operations assume the admin client is authenticated with an admin UID or custom token that satisfies your isAdmin() rule.
-    // ---------------------------
   </script>
 </body>
 </html>
