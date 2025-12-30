@@ -566,14 +566,21 @@
         for (const a of auditSnap.docs) {
           await deleteDoc(doc(db, 'audit_logs', a.id));
         }
-        await setDoc(doc(db, 'game_state', 'current_game'), { history: [], isRolling: false, luckyUser: '', status: 'waiting' });
+        await setDoc(doc(db, 'game_state', 'current_game'), {
+          history: [],
+          isRolling: false,
+          luckyUser: '',
+          status: 'waiting'
+        });
         alert('遊戲已重置');
-        confirmResetModal.classList.add('hidden');
       } catch (err) {
         console.error('doAdminResetGame error', err);
         alert('重置失敗：' + (err.message || err));
+      } finally {
+        confirmResetModal.classList.add('hidden');
       }
     }
+
 
     // ---------------------------
     // Subscriptions
