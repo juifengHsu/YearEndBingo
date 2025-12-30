@@ -3,9 +3,9 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-<title>2025 尾牙賓果系統 0003</title>
+<title>2025 尾牙賓果系統</title>
 
-<!-- Firebase compat libs (可用於 GitHub Pages 測試) -->
+<!-- Firebase compat libs -->
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
@@ -33,6 +33,10 @@ input { padding: 12px; border-radius: 8px; border: 1px solid #ddd; margin-bottom
 .modal-card { background:white; padding:20px; border-radius:12px; width:320px; text-align:center; color:#333; }
 .admin-login-input { width:100%; margin-bottom:8px; padding:8px; border-radius:8px; border:1px solid #ddd; }
 .small-btn { padding:6px 10px; border-radius:6px; border:none; cursor:pointer; }
+.header-row { width:100%; max-width:720px; display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+.header-left { display:flex; gap:12px; align-items:center; }
+.online-badge { background:#fff; color:#333; padding:6px 10px; border-radius:999px; font-weight:700; box-shadow:0 4px 12px rgba(0,0,0,0.06); }
+.admin-indicator { background:var(--secondary); color:#333; padding:6px 10px; border-radius:8px; font-weight:700; }
 </style>
 </head>
 <body>
@@ -40,7 +44,7 @@ input { padding: 12px; border-radius: 8px; border: 1px solid #ddd; margin-bottom
 <!-- LOGIN PAGE -->
 <div id="page-login" class="page active">
   <div class="login-container">
-    <h1 onclick="handleAdminClick()">🧧 2025<br>尾牙賓果</h1>
+    <h1 onclick="handleAdminClick()">🧧 2025<br>尾牙賓果0005</h1>
     <input type="text" id="username-input" placeholder="請輸入姓名" />
     <button id="btn-login" onclick="handleLogin()" style="width: 85%;">進入遊戲</button>
     <div style="margin-top:12px;" class="small-muted">匿名登入，請輸入顯示用姓名</div>
@@ -49,9 +53,15 @@ input { padding: 12px; border-radius: 8px; border: 1px solid #ddd; margin-bottom
 
 <!-- PLAYER PAGE -->
 <div id="page-game" class="page">
-  <div style="width:100%; display:flex; justify-content:space-between; margin-bottom:10px;">
-    <span id="display-name">載入中...</span>
-    <span id="status-tag">🟢 在線</span>
+  <div class="header-row">
+    <div class="header-left">
+      <span id="display-name">載入中...</span>
+      <span id="status-tag">🟢 在線</span>
+    </div>
+    <div style="display:flex; gap:8px; align-items:center;">
+      <div id="online-count" class="online-badge">在線: 0</div>
+      <div id="admin-badge" class="admin-indicator" style="display:none;">管理模式</div>
+    </div>
   </div>
 
   <div class="big-number" id="current-draw">READY</div>
@@ -122,7 +132,7 @@ input { padding: 12px; border-radius: 8px; border: 1px solid #ddd; margin-bottom
 
 <script>
 /* =========================
-   Firebase config (請替換為你的專案)
+   Firebase config - 請替換為你的專案
    ========================= */
 const firebaseConfig = {
   apiKey: "AIzaSyCLTGzCZUQm2ZzqfdBHk9D4xYpagaVtX7w",
@@ -139,16 +149,53 @@ const db = firebase.firestore();
 const auth = firebase.auth();
 
 /* =========================
-   全域變數
+   全域變數與設定
    ========================= */
 let currentUser = null;
 let myData = { name: "", board: [], locked: false, boardStr: "", maxConsecutive: 0, version: 0 };
 let gameHistory = [];
 let rollingInterval = null;
 let heartbeatTimer = null;
+let adminClickCount = 0;
+let adminClickTimeout = null;
+const ADMIN_CLICK_WINDOW_MS = 3000; // 3 秒
+const ADMIN_CLICK_REQUIRED = 5;
+const ALLOWED_ADMIN_UIDS = ["z6bA9TzIhPUqXBxSyoIlZGBETwy1"]; // 與 Rules 保持一致
+const ONLINE_THRESHOLD_MS = 30000; // 30 秒
 
-// UID 白名單（與 Firestore Security Rules 保持一致）
-const ALLOWED_ADMIN_UIDS = ["z6bA9TzIhPUqXBxSyoIlZGBETwy1"];
+/* =========================
+   載入玩家資料（只影響當前使用者）
+   ========================= */
+async function loadPlayerData(uid, displayNameIfMissing) {
+  if(!uid) return;
+  const docRef = db.collection("players").doc(uid);
+  const docSnap = await docRef.get();
+  if(docSnap.exists) {
+    const d = docSnap.data();
+    myData = {
+      name: d.name || displayNameIfMissing || "",
+      board: d.board || Array.from({length:25},(_,i)=>i+1),
+      boardStr: d.boardStr || (d.board ? d.board.join(',') : ""),
+      locked: !!d.locked,
+      maxConsecutive: d.maxConsecutive || 0,
+      version: d.version || 0
+    };
+  } else {
+    const board = Array.from({length:25},(_,i)=>i+1).sort(()=>Math.random()-0.5);
+    myData = { name: displayNameIfMissing || "", board, boardStr: board.join(','), locked:false, maxConsecutive:0, version:1 };
+    await docRef.set({
+      name: myData.name,
+      board: myData.board,
+      boardStr: myData.boardStr,
+      locked: false,
+      maxConsecutive: 0,
+      lastSeen: firebase.firestore.FieldValue.serverTimestamp(),
+      version: 1
+    });
+  }
+  document.getElementById('display-name').innerText = myData.name;
+  renderBoard();
+}
 
 /* =========================
    玩家匿名登入流程
@@ -158,57 +205,25 @@ async function handleLogin() {
   if(!name) return alert("請輸入姓名");
   document.getElementById('btn-login').disabled = true;
   try {
-    // 匿名登入（若已登入則不重複）
-    if(!auth.currentUser) {
-      await auth.signInAnonymously();
-    } else if (auth.currentUser.isAnonymous === false) {
-      // 若已用其他帳號登入（例如管理者），先登出再匿名登入
+    // 若已登入且為非匿名，先登出再匿名登入
+    if(auth.currentUser && !auth.currentUser.isAnonymous) {
       await auth.signOut();
+    }
+    if(!auth.currentUser || !auth.currentUser.isAnonymous) {
       await auth.signInAnonymously();
     }
-
     currentUser = auth.currentUser;
-    myData.name = name;
-
-    const docRef = db.collection("players").doc(currentUser.uid);
-    const docSnap = await docRef.get();
-    if(docSnap.exists) {
-      const d = docSnap.data();
-      myData.board = d.board || Array.from({length:25},(_,i)=>i+1);
-      myData.locked = !!d.locked;
-      myData.boardStr = d.boardStr || (myData.board.join(','));
-      myData.maxConsecutive = d.maxConsecutive || 0;
-      myData.version = d.version || 0;
-      myData.name = d.name || myData.name;
-      if(d.name !== myData.name) {
-        await docRef.update({ name: myData.name }).catch(()=>{});
-      }
-    } else {
-      myData.board = Array.from({length:25},(_,i)=>i+1).sort(()=>Math.random()-0.5);
-      myData.boardStr = myData.board.join(',');
-      await docRef.set({
-        name: myData.name,
-        board: myData.board,
-        boardStr: myData.boardStr,
-        locked: false,
-        maxConsecutive: 0,
-        lastSeen: firebase.firestore.FieldValue.serverTimestamp(),
-        version: 1
-      });
-      myData.version = 1;
-    }
-
+    await loadPlayerData(currentUser.uid, name);
     document.getElementById('display-name').innerText = myData.name;
     switchPage('page-game');
     startListeners();
-    renderBoard();
-
     // 心跳：每 15 秒更新 lastSeen
     if(heartbeatTimer) clearInterval(heartbeatTimer);
     heartbeatTimer = setInterval(() => {
-      if(currentUser) db.collection("players").doc(currentUser.uid).update({ lastSeen: firebase.firestore.FieldValue.serverTimestamp() }).catch(()=>{});
+      if(currentUser && currentUser.isAnonymous) {
+        db.collection("players").doc(currentUser.uid).update({ lastSeen: firebase.firestore.FieldValue.serverTimestamp() }).catch(()=>{});
+      }
     }, 15000);
-
   } catch(e) {
     alert("登入失敗: " + (e.message || e));
     document.getElementById('btn-login').disabled = false;
@@ -229,25 +244,31 @@ function startListeners() {
     }
 
     gameHistory = data.history || [];
+    const pending = data.pendingNumber || null;
 
-    // isRolling 動畫
+    // isRolling 與 pendingNumber 顯示邏輯
+    const isAdminClient = currentUser && ALLOWED_ADMIN_UIDS.includes(currentUser.uid);
     if(data.isRolling) {
-      if(!rollingInterval) {
-        rollingInterval = setInterval(()=> {
-          document.getElementById('current-draw').innerText = Math.floor(Math.random()*25)+1;
-        }, 80);
+      // 管理端直接看到 pendingNumber（若存在）
+      if(isAdminClient && pending != null) {
+        if(rollingInterval) { clearInterval(rollingInterval); rollingInterval = null; }
+        document.getElementById('current-draw').innerText = pending;
+      } else {
+        // 一般玩家顯示動畫
+        if(!rollingInterval) {
+          rollingInterval = setInterval(()=> {
+            document.getElementById('current-draw').innerText = Math.floor(Math.random()*25)+1;
+          }, 80);
+        }
       }
     } else {
-      if(rollingInterval) {
-        clearInterval(rollingInterval);
-        rollingInterval = null;
-      }
+      if(rollingInterval) { clearInterval(rollingInterval); rollingInterval = null; }
       document.getElementById('current-draw').innerText = gameHistory.length ? gameHistory[gameHistory.length-1] : "READY";
       renderBoard();
     }
 
     // 若玩家已鎖定，計算 maxConsecutive 並回寫（非阻塞）
-    if(currentUser && myData.locked) {
+    if(currentUser && currentUser.isAnonymous && myData.locked) {
       try {
         const maxLen = calculateMaxConsecutive(myData.board, gameHistory);
         if(maxLen !== myData.maxConsecutive) {
@@ -285,12 +306,19 @@ function startListeners() {
 
   // admin: players 統計（簡單示範）
   db.collection("players").onSnapshot(snap => {
-    const counts = [0,0,0,0,0,0]; // index = consecutive length
+    const counts = [0,0,0,0,0,0];
+    const now = Date.now();
+    let online = 0;
     snap.docs.forEach(d => {
-      const v = d.data().maxConsecutive || 0;
+      const data = d.data();
+      const v = data.maxConsecutive || 0;
       if(v >=0 && v <=5) counts[v]++;
+      const ts = data.lastSeen ? (data.lastSeen.toMillis ? data.lastSeen.toMillis() : (new Date(data.lastSeen).getTime())) : 0;
+      if(now - ts < ONLINE_THRESHOLD_MS) online++;
     });
-    document.getElementById('stats-area').innerHTML = '連續命中分佈: ' + counts.map((c,i)=>`${i}:${c}`).join(' | ');
+    document.getElementById('stats-area').innerHTML = '連續命中分佈: ' + counts.map((c,i)=>`${i}:${c}`).join(' | ') + `<div style="margin-top:6px;">在線人數: ${online}</div>`;
+    const el = document.getElementById('online-count');
+    if(el) el.innerText = '在線: ' + online;
   });
 }
 
@@ -333,7 +361,7 @@ function generateBoard() {
    鎖定盤面（先檢查 board_index，再 transaction，含樂觀鎖）
    ========================= */
 async function lockBoard() {
-  if(!currentUser) return alert("請先登入");
+  if(!currentUser || !currentUser.isAnonymous) return alert("請先以玩家身份登入");
   if(!confirm("鎖定後不可更改，確定嗎？")) return;
 
   const bStr = myData.board.join(',');
@@ -342,27 +370,22 @@ async function lockBoard() {
   const auditRef = db.collection("audit_logs").doc();
 
   try {
-    // 1) 先快速檢查 board_index 是否已存在
     const idxSnap = await boardIndexRef.get();
     if (idxSnap.exists) {
       return alert("盤面重複，請重新換號");
     }
 
-    // 2) transaction：再次檢查並建立 index，更新 players 並寫 audit
     await db.runTransaction(async tx => {
       const playerSnap = await tx.get(playerRef);
       const currentVersion = playerSnap.exists ? (playerSnap.data().version || 0) : 0;
-
       const idxSnapTx = await tx.get(boardIndexRef);
       if (idxSnapTx.exists) {
         throw new Error("board_exists");
       }
-
       const knownVersion = myData.version || 0;
       if (currentVersion !== knownVersion) {
         throw new Error("version_mismatch");
       }
-
       tx.set(boardIndexRef, { uid: currentUser.uid, boardStr: bStr, timestamp: firebase.firestore.FieldValue.serverTimestamp() });
       tx.update(playerRef, {
         board: myData.board,
@@ -398,7 +421,7 @@ async function lockBoard() {
    幸運兒送出號碼（玩家端）
    ========================= */
 async function submitLuckyChoice() {
-  if(!currentUser) return alert("請先登入");
+  if(!currentUser || !currentUser.isAnonymous) return alert("請先以玩家身份登入");
   const num = parseInt(document.getElementById('lucky-num-input').value);
   if(isNaN(num) || num < 1 || num > 25) return alert("請輸入 1-25 的號碼");
   if(gameHistory.includes(num)) return alert("號碼已開過");
@@ -471,7 +494,7 @@ async function approveLucky(num, pendingId) {
 }
 
 /* =========================
-   抽號（管理端）
+   抽號（管理端） - 使用 pendingNumber 顯示
    ========================= */
 async function drawNumber() {
   const ref = db.collection("game_state").doc("current_game");
@@ -482,7 +505,9 @@ async function drawNumber() {
     if(avail.length === 0) return alert("所有號碼已開完");
     const newNum = avail[Math.floor(Math.random()*avail.length)];
 
-    await ref.update({ isRolling: true });
+    // 先寫入 pendingNumber 與 isRolling
+    await ref.update({ isRolling: true, pendingNumber: newNum });
+
     await db.collection("audit_logs").add({
       action: "start_draw",
       detail: { newNum, triggeredBy: "admin" },
@@ -491,11 +516,24 @@ async function drawNumber() {
 
     setTimeout(async () => {
       try {
-        await ref.update({ history: firebase.firestore.FieldValue.arrayUnion(newNum), isRolling: false, luckyUser: "" });
-        await db.collection("audit_logs").add({
-          action: "draw_number",
-          detail: { number: newNum },
-          timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        await db.runTransaction(async tx => {
+          const g = await tx.get(ref);
+          const history = g.exists ? (g.data().history || []) : [];
+          if(history.includes(newNum)) {
+            tx.update(ref, { isRolling: false, pendingNumber: firebase.firestore.FieldValue.delete(), luckyUser: "" });
+          } else {
+            tx.update(ref, {
+              history: firebase.firestore.FieldValue.arrayUnion(newNum),
+              isRolling: false,
+              pendingNumber: firebase.firestore.FieldValue.delete(),
+              luckyUser: ""
+            });
+          }
+          tx.set(db.collection("audit_logs").doc(), {
+            action: "draw_number",
+            detail: { number: newNum },
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+          });
         });
       } catch(e) {
         console.error("寫入開獎失敗", e);
@@ -564,8 +602,18 @@ function longestStreak(line, history) {
    管理者登入（Email/Password）與 UID 白名單檢查
    ========================= */
 function handleAdminClick() {
-  // 顯示管理登入 modal（取代原本 PIN 行為）
-  document.getElementById('admin-login-modal').style.display = 'flex';
+  adminClickCount++;
+  if(adminClickTimeout) clearTimeout(adminClickTimeout);
+  adminClickTimeout = setTimeout(() => {
+    adminClickCount = 0;
+    adminClickTimeout = null;
+  }, ADMIN_CLICK_WINDOW_MS);
+
+  if(adminClickCount >= ADMIN_CLICK_REQUIRED) {
+    adminClickCount = 0;
+    if(adminClickTimeout) { clearTimeout(adminClickTimeout); adminClickTimeout = null; }
+    document.getElementById('admin-login-modal').style.display = 'flex';
+  }
 }
 function closeAdminLogin() {
   document.getElementById('admin-login-modal').style.display = 'none';
@@ -577,41 +625,45 @@ function closeAdminLogin() {
 async function adminSignIn() {
   const email = document.getElementById('admin-email').value.trim();
   const pwd = document.getElementById('admin-pwd').value;
+  const msgEl = document.getElementById('admin-login-msg');
+  msgEl.innerText = '';
+
   if(!email || !pwd) {
-    document.getElementById('admin-login-msg').innerText = '請輸入 Email 與密碼';
+    msgEl.innerText = '請輸入 Email 與密碼';
     return;
   }
   try {
-    // 登入（會取代目前的匿名使用者）
     const cred = await auth.signInWithEmailAndPassword(email, pwd);
     const user = cred.user;
     if(!user) throw new Error('登入失敗');
 
-    // 檢查 UID 是否在白名單
     if(ALLOWED_ADMIN_UIDS.includes(user.uid)) {
       closeAdminLogin();
       startAdminAfterAuth(user);
       return;
     } else {
       await auth.signOut();
-      document.getElementById('admin-login-msg').innerText = '此帳號非管理者，請使用管理者帳號登入';
+      msgEl.innerText = '此帳號非管理者，請使用管理者帳號登入';
       return;
     }
   } catch (e) {
-    document.getElementById('admin-login-msg').innerText = '登入失敗: ' + (e.message || e);
+    console.error('adminSignIn error', e);
+    if(e.code === 'auth/user-not-found') msgEl.innerText = '找不到此帳號，請確認 Email 是否正確';
+    else if(e.code === 'auth/wrong-password') msgEl.innerText = '密碼錯誤，請重新輸入';
+    else if(e.code === 'auth/invalid-email') msgEl.innerText = 'Email 格式錯誤';
+    else msgEl.innerText = '登入失敗: ' + (e.message || e);
   }
 }
 
 function startAdminAfterAuth(user) {
   console.log('Admin signed in:', user.uid);
-  // 進入管理頁面
+  document.getElementById('admin-badge').style.display = 'inline-block';
   startAdmin();
 }
 
 async function adminSignOut() {
   try { await auth.signOut(); } catch(e){ console.warn(e); }
-  // 選擇性：重新以匿名登入以保留玩家體驗（若管理者在同一台機器操作，建議不要自動覆蓋玩家資料）
-  try { await auth.signInAnonymously(); } catch(e){ console.warn(e); }
+  document.getElementById('admin-badge').style.display = 'none';
   switchPage('page-login');
 }
 
@@ -620,7 +672,6 @@ async function adminSignOut() {
    ========================= */
 function startAdmin() {
   switchPage('page-admin');
-  // 監聽器已在 startListeners 中註冊
 }
 
 /* =========================
@@ -631,20 +682,32 @@ function escapeHtml(s) { return String(s).replace(/[&<>"']/g, function(m){ retur
 function switchPage(id) { document.querySelectorAll('.page').forEach(p => p.classList.remove('active')); document.getElementById(id).classList.add('active'); }
 
 /* =========================
-   Auth state 監聽與清理
+   Auth state 監聽與初始化
    ========================= */
-auth.onAuthStateChanged(user => {
+auth.onAuthStateChanged(async user => {
   currentUser = user || null;
+  console.log('Auth state changed:', user ? (user.uid + ' anonymous:' + user.isAnonymous) : 'signed out');
+
   if(!user) {
     switchPage('page-login');
     if(heartbeatTimer) { clearInterval(heartbeatTimer); heartbeatTimer = null; }
+    return;
+  }
+
+  // 若為匿名使用者，若尚未載入資料則載入
+  if(user.isAnonymous) {
+    if(!myData || !myData.board || myData.board.length !== 25) {
+      await loadPlayerData(user.uid, document.getElementById('username-input')?.value || "");
+    }
   } else {
-    // 若為匿名且已在遊戲頁面，保持現狀
-    // 若為管理者登入（非匿名），可選擇直接進入管理頁面（但我們以 explicit login flow 控制）
-    console.log('Auth state changed:', user.uid, 'anonymous:', user.isAnonymous);
+    // 非匿名（管理者）登入時，不要自動建立或修改 players/{uid}
+    document.getElementById('admin-badge').style.display = ALLOWED_ADMIN_UIDS.includes(user.uid) ? 'inline-block' : 'none';
   }
 });
 
+/* =========================
+   清理與卸載
+   ========================= */
 window.addEventListener('beforeunload', () => {
   if(rollingInterval) clearInterval(rollingInterval);
   if(heartbeatTimer) clearInterval(heartbeatTimer);
