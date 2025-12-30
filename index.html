@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>2025 尾牙賓果系統</title>
 
 <!-- Firebase compat libs -->
@@ -11,129 +11,157 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 
 <style>
-:root { --primary: #d32f2f; --secondary: #ffc107; --bg: #f8f9fa; --success: #2e7d32; --dark: #2c3e50; }
-body { font-family: -apple-system, system-ui, sans-serif; margin: 0; background: var(--bg); text-align: center; color: #333; user-select: none; }
-.page { display: none !important; padding: 20px; box-sizing: border-box; min-height: 100vh; }
-.page.active { display: flex !important; flex-direction: column; align-items: center; }
-.login-container { margin-top: 15vh; width: 100%; max-width: 320px; }
-h1 { color: var(--primary); font-size: 2.5rem; cursor: pointer; }
-.grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; width: 100%; max-width: 360px; background: #fff; padding: 10px; border-radius: 16px; box-shadow: 0 8px 20px rgba(0,0,0,0.08); }
-.cell { aspect-ratio: 1; border: 1px solid #f0f0f0; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; font-weight: 700; border-radius: 8px; background: #fafafa; }
-.cell.selected { background: var(--secondary); color: #b71c1c; }
-.cell.bingo-line { background: var(--primary) !important; color: white !important; animation: pulse 1s infinite; }
-.big-number { font-size: 5rem; color: var(--primary); font-weight: 800; margin: 10px 0; min-height: 100px; }
-#page-admin { background: var(--dark); color: white; text-align: left; align-items: stretch; }
-.admin-card { background: #34495e; padding: 15px; border-radius: 10px; margin-bottom: 15px; }
-button { padding: 12px; border: none; border-radius: 8px; background: var(--primary); color: white; font-weight: bold; cursor: pointer; }
-input { padding: 12px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 10px; width: 80%; text-align: center; }
-@keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
-.small-muted { font-size: 0.9rem; color: #ddd; }
-.pending-item { display:flex; gap:8px; align-items:center; margin:6px 0; }
-.modal-center { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); display:none; align-items:center; justify-content:center; z-index:100; }
-.modal-card { background:white; padding:20px; border-radius:12px; width:320px; text-align:center; color:#333; }
-.admin-login-input { width:100%; margin-bottom:8px; padding:8px; border-radius:8px; border:1px solid #ddd; }
-.small-btn { padding:6px 10px; border-radius:6px; border:none; cursor:pointer; }
-.header-row { width:100%; max-width:720px; display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
-.header-left { display:flex; gap:12px; align-items:center; }
-.online-badge { background:#fff; color:#333; padding:6px 10px; border-radius:999px; font-weight:700; box-shadow:0 4px 12px rgba(0,0,0,0.06); }
-.admin-indicator { background:var(--secondary); color:#333; padding:6px 10px; border-radius:8px; font-weight:700; }
+:root { --primary:#d32f2f; --accent:#ffb300; --bg:#f6f7fb; --card:#ffffff; --muted:#6b7280; --success:#2e7d32; --dark:#2c3e50; }
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;background:var(--bg);color:#222}
+.container{max-width:980px;margin:20px auto;padding:16px}
+.header{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px}
+.brand{display:flex;align-items:center;gap:12px}
+.brand h1{margin:0;font-size:1.4rem;color:var(--primary);cursor:pointer}
+.info-badges{display:flex;gap:8px;align-items:center}
+.badge{background:var(--card);padding:6px 10px;border-radius:999px;box-shadow:0 6px 18px rgba(0,0,0,0.06);font-weight:700}
+.admin-indicator{background:var(--accent);color:#111;padding:6px 10px;border-radius:8px;font-weight:700}
+.grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;background:var(--card);padding:12px;border-radius:12px;box-shadow:0 8px 20px rgba(0,0,0,0.06)}
+.cell{aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:8px;background:#fafafa;font-weight:800;font-size:1.1rem}
+.cell.selected{background:var(--accent);color:#7b2b2b}
+.controls{display:flex;gap:8px;justify-content:center;margin-top:12px}
+.btn{padding:10px 14px;border-radius:8px;border:none;background:var(--primary);color:#fff;font-weight:700;cursor:pointer}
+.btn.secondary{background:#546e7a}
+.small{padding:8px 10px;font-size:0.9rem}
+.modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);z-index:120}
+.modal .card{background:#fff;padding:18px;border-radius:12px;width:320px;max-width:92%}
+.admin-login-input{width:100%;padding:10px;border-radius:8px;border:1px solid #ddd;margin-bottom:8px}
+.row{display:flex;gap:12px;align-items:center}
+.col{display:flex;flex-direction:column;gap:8px}
+.side-panel{background:var(--card);padding:12px;border-radius:12px;box-shadow:0 8px 20px rgba(0,0,0,0.06)}
+.layout{display:grid;grid-template-columns:1fr 320px;gap:12px}
+.admin-card{background:#34495e;color:#fff;padding:12px;border-radius:10px}
+.small-muted{color:var(--muted);font-size:0.9rem}
+.footer{margin-top:18px;text-align:center;color:var(--muted);font-size:0.9rem}
+.players-list{max-height:240px;overflow:auto;padding:6px}
+.player-row{display:flex;justify-content:space-between;align-items:center;padding:6px;border-bottom:1px dashed #eee}
+.status-dot{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:8px}
+.admin-bingo-list{max-height:160px;overflow:auto;padding:6px;color:#fff}
+@media(max-width:880px){.layout{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
+<div class="container">
 
-<!-- LOGIN PAGE -->
-<div id="page-login" class="page active">
-  <div class="login-container">
-    <h1 onclick="handleAdminClick()">🧧 2025<br>尾牙賓果0005</h1>
-    <input type="text" id="username-input" placeholder="請輸入姓名" />
-    <button id="btn-login" onclick="handleLogin()" style="width: 85%;">進入遊戲</button>
-    <div style="margin-top:12px;" class="small-muted">匿名登入，請輸入顯示用姓名</div>
-  </div>
-</div>
-
-<!-- PLAYER PAGE -->
-<div id="page-game" class="page">
-  <div class="header-row">
-    <div class="header-left">
-      <span id="display-name">載入中...</span>
-      <span id="status-tag">🟢 在線</span>
+  <div class="header">
+    <div class="brand">
+      <h1 onclick="handleAdminClick()">🧧 2025 尾牙賓果</h1>
+      <div class="small-muted">活動前端</div>
     </div>
-    <div style="display:flex; gap:8px; align-items:center;">
-      <div id="online-count" class="online-badge">在線: 0</div>
-      <div id="admin-badge" class="admin-indicator" style="display:none;">管理模式</div>
+
+    <div class="info-badges">
+      <div id="version-badge" class="badge">版次: v0.0.0</div>
+      <div id="online-count" class="badge">在線: 0</div>
+      <div id="registered-count" class="badge">註冊: 0</div>
+      <div id="admin-badge" class="admin-indicator" style="display:none">管理模式</div>
     </div>
   </div>
 
-  <div class="big-number" id="current-draw">READY</div>
-
-  <div id="status-text" style="font-weight:bold; margin-bottom:10px; color:var(--success);">請先鎖定號碼</div>
-
-  <div class="grid" id="bingo-grid"></div>
-
-  <div id="setup-controls" style="margin-top:15px; display:flex; gap:10px;">
-    <button onclick="generateBoard()" style="background:#546e7a;">🎲 換號碼</button>
-    <button onclick="lockBoard()" id="btn-lock-real" style="background:var(--success);">🔒 鎖定盤面</button>
-  </div>
-</div>
-
-<!-- ADMIN PAGE -->
-<div id="page-admin" class="page">
-  <h2 style="color:white;">⚙️ 管理後台</h2>
-
-  <div class="admin-card">
-    <button onclick="drawNumber()" style="width:100%; background:#e67e22; margin-bottom:10px;">🎲 隨機抽號</button>
-    <button onclick="pickLuckyPlayer()" style="width:100%; background:var(--secondary); color:#333;">🌟 抽幸運兒</button>
+  <!-- login -->
+  <div id="page-login" class="side-panel">
+    <div class="col" style="align-items:center">
+      <input id="username-input" placeholder="請輸入暱稱（玩家）" style="width:100%;padding:10px;border-radius:8px;border:1px solid #ddd" />
+      <button id="btn-login" class="btn" style="width:100%" onclick="handleLogin()">以匿名玩家登入</button>
+      <div class="small-muted">若要管理請點左上標題 5 次（3 秒內）並以管理帳號登入</div>
+    </div>
   </div>
 
-  <div class="admin-card">已抽號碼: <div id="admin-history" style="margin-top:8px; color:#fff;"></div></div>
+  <div class="layout" style="margin-top:12px">
+    <div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
+        <div id="current-draw" class="badge" style="font-size:2rem;padding:18px 28px;background:var(--card);box-shadow:0 8px 20px rgba(0,0,0,0.06)">READY</div>
+        <div id="status-text" class="small-muted">請先鎖定盤面</div>
+      </div>
 
-  <div id="admin-pending-area" class="admin-card" style="display:none; border:2px solid var(--secondary);">
-    <strong>待審核選號:</strong>
-    <div id="pending-list" style="margin-top:8px;"></div>
+      <div style="margin-top:12px">
+        <div id="display-name" class="small-muted" style="margin-bottom:8px">未登入</div>
+        <div id="bingo-grid" class="grid" aria-hidden="false"></div>
+
+        <div class="controls" id="setup-controls">
+          <button class="btn secondary" onclick="generateBoard()">🎲 換號碼</button>
+          <button class="btn" id="btn-lock-real" onclick="lockBoard()">🔒 鎖定盤面</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="col">
+      <div class="side-panel">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div style="font-weight:800">管理資訊</div>
+          <div class="small-muted" id="last-updated">-</div>
+        </div>
+
+        <div class="admin-card" style="margin-bottom:8px">
+          <div style="display:flex;gap:8px;align-items:center;justify-content:space-between">
+            <div>已抽號碼</div>
+            <div id="admin-history" style="color:#fff"></div>
+          </div>
+        </div>
+
+        <div class="admin-card" style="margin-bottom:8px">
+          <div style="font-weight:700;margin-bottom:6px">待審核選號</div>
+          <div id="pending-list" class="players-list"></div>
+        </div>
+
+        <div class="admin-card" style="margin-bottom:8px">
+          <div style="font-weight:700;margin-bottom:6px">賓果通知</div>
+          <div id="admin-bingo-list" class="admin-bingo-list"></div>
+        </div>
+
+        <div class="side-panel" style="margin-top:8px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <div style="font-weight:700">玩家清單</div>
+            <div id="players-count" class="small-muted">0</div>
+          </div>
+          <div id="players-list" class="players-list"></div>
+        </div>
+
+      </div>
+    </div>
   </div>
 
-  <div class="admin-card">
-    <strong>統計</strong>
-    <div id="stats-area" style="margin-top:8px; color:#fff;"></div>
-  </div>
-
-  <div style="display:flex; gap:8px;">
-    <button onclick="adminSignOut()" style="background:#c0392b; flex:1;">登出</button>
-    <button onclick="location.reload()" style="background:#7f8c8d; flex:1;">返回/重整</button>
+  <div class="footer">
+    <div class="small-muted">請確認 Firebase config 與 Security Rules 已正確設定</div>
   </div>
 </div>
 
 <!-- LUCKY MODAL -->
-<div id="lucky-modal" class="modal-center">
-  <div class="modal-card">
-    <h3>🌟 天選之人！</h3>
-    <p>請輸入下一個開獎號碼 (1-25)：</p>
-    <input type="number" id="lucky-num-input" min="1" max="25" class="admin-login-input" />
-    <div style="display:flex; gap:8px;">
-      <button onclick="submitLuckyChoice()" class="small-btn" style="flex:1; background:var(--primary); color:#fff;">送出號碼</button>
-      <button onclick="document.getElementById('lucky-modal').style.display='none'" class="small-btn" style="flex:1; background:#777; color:#fff;">取消</button>
+<div id="lucky-modal" class="modal">
+  <div class="card">
+    <h3>🌟 天選之人</h3>
+    <p>請輸入下一個開獎號碼 (1-25)</p>
+    <input id="lucky-num-input" type="number" min="1" max="25" class="admin-login-input" />
+    <div style="display:flex;gap:8px">
+      <button class="btn" onclick="submitLuckyChoice()">送出</button>
+      <button class="btn secondary" onclick="document.getElementById('lucky-modal').style.display='none'">取消</button>
     </div>
   </div>
 </div>
 
 <!-- ADMIN LOGIN MODAL -->
-<div id="admin-login-modal" class="modal-center">
-  <div class="modal-card">
+<div id="admin-login-modal" class="modal">
+  <div class="card">
     <h3>管理者登入</h3>
     <input id="admin-email" type="email" placeholder="管理者 Email" class="admin-login-input" />
     <input id="admin-pwd" type="password" placeholder="密碼" class="admin-login-input" />
-    <div style="display:flex; gap:8px;">
-      <button onclick="adminSignIn()" class="small-btn" style="flex:1; background:var(--primary); color:#fff;">登入</button>
-      <button onclick="closeAdminLogin()" class="small-btn" style="flex:1; background:#777; color:#fff;">取消</button>
+    <div style="display:flex;gap:8px">
+      <button class="btn" onclick="adminSignIn()">登入</button>
+      <button class="btn secondary" onclick="closeAdminLogin()">取消</button>
     </div>
-    <div id="admin-login-msg" style="margin-top:8px; color:#c0392b;"></div>
+    <div id="admin-login-msg" class="small-muted" style="margin-top:8px;color:#c0392b"></div>
   </div>
 </div>
 
 <script>
 /* =========================
-   Firebase config - 請替換為你的專案
+   設定：請替換 firebaseConfig 與 ALLOWED_ADMIN_UIDS、APP_VERSION
    ========================= */
+const APP_VERSION = "v1.0.0"; // 顯示版次
 const firebaseConfig = {
   apiKey: "AIzaSyCLTGzCZUQm2ZzqfdBHk9D4xYpagaVtX7w",
   authDomain: "yearendbingo.firebaseapp.com",
@@ -143,25 +171,27 @@ const firebaseConfig = {
   appId: "1:563353011392:web:717976a176bc22a04d5925",
   measurementId: "G-M6EVYSPNJ9"
 };
+const ALLOWED_ADMIN_UIDS = ["z6bA9TzIhPUqXBxSyoIlZGBETwy1"]; // 與 Rules 保持一致
+const ONLINE_THRESHOLD_MS = 30000;
+const ONLINE_WARNING_MS = 60000;
 
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 const auth = firebase.auth();
 
 /* =========================
-   全域變數與設定
+   全域變數
    ========================= */
 let currentUser = null;
-let myData = { name: "", board: [], locked: false, boardStr: "", maxConsecutive: 0, version: 0 };
+let myData = { name:"", board:[], locked:false, boardStr:"", maxConsecutive:0, version:0 };
 let gameHistory = [];
 let rollingInterval = null;
 let heartbeatTimer = null;
 let adminClickCount = 0;
 let adminClickTimeout = null;
-const ADMIN_CLICK_WINDOW_MS = 3000; // 3 秒
-const ADMIN_CLICK_REQUIRED = 5;
-const ALLOWED_ADMIN_UIDS = ["z6bA9TzIhPUqXBxSyoIlZGBETwy1"]; // 與 Rules 保持一致
-const ONLINE_THRESHOLD_MS = 30000; // 30 秒
+
+/* 初始化版次顯示 */
+document.getElementById('version-badge').innerText = '版次: ' + APP_VERSION;
 
 /* =========================
    載入玩家資料（只影響當前使用者）
@@ -193,7 +223,9 @@ async function loadPlayerData(uid, displayNameIfMissing) {
       version: 1
     });
   }
-  document.getElementById('display-name').innerText = myData.name;
+  // 立即更新 lastSeen
+  await db.collection('players').doc(uid).update({ lastSeen: firebase.firestore.FieldValue.serverTimestamp() }).catch(()=>{});
+  document.getElementById('display-name').innerText = myData.name || '玩家';
   renderBoard();
 }
 
@@ -202,10 +234,9 @@ async function loadPlayerData(uid, displayNameIfMissing) {
    ========================= */
 async function handleLogin() {
   const name = document.getElementById('username-input').value.trim();
-  if(!name) return alert("請輸入姓名");
+  if(!name) return alert("請輸入暱稱");
   document.getElementById('btn-login').disabled = true;
   try {
-    // 若已登入且為非匿名，先登出再匿名登入
     if(auth.currentUser && !auth.currentUser.isAnonymous) {
       await auth.signOut();
     }
@@ -214,10 +245,9 @@ async function handleLogin() {
     }
     currentUser = auth.currentUser;
     await loadPlayerData(currentUser.uid, name);
-    document.getElementById('display-name').innerText = myData.name;
-    switchPage('page-game');
-    startListeners();
-    // 心跳：每 15 秒更新 lastSeen
+    switchPageToGame();
+    startListeners(); // 啟動監聽（若尚未）
+    // heartbeat
     if(heartbeatTimer) clearInterval(heartbeatTimer);
     heartbeatTimer = setInterval(() => {
       if(currentUser && currentUser.isAnonymous) {
@@ -231,9 +261,26 @@ async function handleLogin() {
 }
 
 /* =========================
-   監聽器與即時處理
+   UI 切換
    ========================= */
+function switchPageToGame() {
+  document.getElementById('page-login').style.display = 'none';
+  document.getElementById('display-name').innerText = myData.name || '玩家';
+  document.getElementById('setup-controls').style.display = myData.locked ? 'none' : 'flex';
+}
+function switchPageToLogin() {
+  document.getElementById('page-login').style.display = 'block';
+  document.getElementById('admin-badge').style.display = 'none';
+}
+
+/* =========================
+   監聽器與即時處理（包含 players 與 game_state）
+   ========================= */
+let listenersStarted = false;
 function startListeners() {
+  if(listenersStarted) return;
+  listenersStarted = true;
+
   // game_state 監聽
   db.collection("game_state").doc("current_game").onSnapshot(doc => {
     const data = doc.exists ? doc.data() : null;
@@ -242,19 +289,16 @@ function startListeners() {
       document.getElementById('current-draw').innerText = "READY";
       return;
     }
-
     gameHistory = data.history || [];
-    const pending = data.pendingNumber || null;
-
-    // isRolling 與 pendingNumber 顯示邏輯
+    const pending = data.pendingNumber != null ? data.pendingNumber : null;
     const isAdminClient = currentUser && ALLOWED_ADMIN_UIDS.includes(currentUser.uid);
+
+    // pending / isRolling 顯示
     if(data.isRolling) {
-      // 管理端直接看到 pendingNumber（若存在）
       if(isAdminClient && pending != null) {
         if(rollingInterval) { clearInterval(rollingInterval); rollingInterval = null; }
         document.getElementById('current-draw').innerText = pending;
       } else {
-        // 一般玩家顯示動畫
         if(!rollingInterval) {
           rollingInterval = setInterval(()=> {
             document.getElementById('current-draw').innerText = Math.floor(Math.random()*25)+1;
@@ -267,58 +311,64 @@ function startListeners() {
       renderBoard();
     }
 
-    // 若玩家已鎖定，計算 maxConsecutive 並回寫（非阻塞）
-    if(currentUser && currentUser.isAnonymous && myData.locked) {
-      try {
-        const maxLen = calculateMaxConsecutive(myData.board, gameHistory);
-        if(maxLen !== myData.maxConsecutive) {
-          myData.maxConsecutive = maxLen;
-          db.collection("players").doc(currentUser.uid).update({ maxConsecutive: maxLen }).catch(()=>{});
-        }
-      } catch(e) { /* 忽略計算錯誤 */ }
-    }
-
-    // 顯示 lucky modal（名字完全比對且玩家已鎖定且非 isRolling）
+    // lucky modal
     if(myData.name && data.luckyUser && data.luckyUser === myData.name && myData.locked && !data.isRolling) {
       document.getElementById('lucky-modal').style.display = 'flex';
     } else {
       document.getElementById('lucky-modal').style.display = 'none';
     }
+
+    // admin history display
+    document.getElementById('admin-history').innerText = (data.history || []).join(', ');
+    document.getElementById('last-updated').innerText = new Date().toLocaleTimeString();
   });
 
-  // pending_choices 監聽（管理端會顯示）
+  // pending_choices 監聽
   db.collection("pending_choices").onSnapshot(snap => {
-    const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    document.getElementById('admin-pending-area').style.display = list.length ? 'block' : 'none';
+    const list = snap.docs.map(d => ({ id:d.id, ...d.data() }));
     document.getElementById('pending-list').innerHTML = list.map(p => {
-      return `<div class="pending-item"><div style="flex:1;color:#fff">${escapeHtml(p.playerName)}: ${p.number}</div>
-        <div><button style="background:#27ae60;color:#fff;padding:6px;border-radius:6px;" onclick="approveLucky(${p.number},'${p.id}')">確認</button></div>
-        <div><button style="background:#c0392b;color:#fff;padding:6px;border-radius:6px;" onclick="rejectPending('${p.id}')">拒絕</button></div>
+      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;color:#fff">
+        <div>${escapeHtml(p.playerName)}: ${p.number}</div>
+        <div style="display:flex;gap:6px">
+          <button class="small" style="background:#27ae60;color:#fff;border-radius:6px" onclick="approveLucky(${p.number},'${p.id}')">確認</button>
+          <button class="small" style="background:#c0392b;color:#fff;border-radius:6px" onclick="rejectPending('${p.id}')">拒絕</button>
+        </div>
       </div>`;
     }).join('');
   });
 
-  // admin: game_state history 顯示
-  db.collection("game_state").doc("current_game").onSnapshot(doc => {
-    const h = doc.exists ? (doc.data().history || []) : [];
-    document.getElementById('admin-history').innerText = h.join(', ');
+  // bingo_events 監聽（管理端）
+  db.collection("bingo_events").orderBy('timestamp','desc').onSnapshot(snap => {
+    const list = snap.docs.map(d => ({ id:d.id, ...d.data() }));
+    document.getElementById('admin-bingo-list').innerHTML = list.map(e => {
+      const t = e.timestamp && e.timestamp.toDate ? e.timestamp.toDate().toLocaleString() : '';
+      return `<div style="padding:6px 0">${escapeHtml(e.name)} (${e.uid}) - ${e.maxConsecutive} - ${t}</div>`;
+    }).join('');
   });
 
-  // admin: players 統計（簡單示範）
+  // players 集合監聽（註冊與在線）
   db.collection("players").onSnapshot(snap => {
-    const counts = [0,0,0,0,0,0];
     const now = Date.now();
     let online = 0;
-    snap.docs.forEach(d => {
+    const rows = snap.docs.map(d => {
       const data = d.data();
-      const v = data.maxConsecutive || 0;
-      if(v >=0 && v <=5) counts[v]++;
-      const ts = data.lastSeen ? (data.lastSeen.toMillis ? data.lastSeen.toMillis() : (new Date(data.lastSeen).getTime())) : 0;
-      if(now - ts < ONLINE_THRESHOLD_MS) online++;
+      const ts = data.lastSeen && data.lastSeen.toMillis ? data.lastSeen.toMillis() : (data.lastSeen ? new Date(data.lastSeen).getTime() : 0);
+      const diff = now - ts;
+      const status = diff < ONLINE_THRESHOLD_MS ? 'online' : (diff < ONLINE_WARNING_MS ? 'idle' : 'offline');
+      if(status === 'online') online++;
+      return { id:d.id, name:data.name || d.id, status, lastSeen:ts };
     });
-    document.getElementById('stats-area').innerHTML = '連續命中分佈: ' + counts.map((c,i)=>`${i}:${c}`).join(' | ') + `<div style="margin-top:6px;">在線人數: ${online}</div>`;
-    const el = document.getElementById('online-count');
-    if(el) el.innerText = '在線: ' + online;
+
+    // 更新 UI
+    document.getElementById('online-count').innerText = '在線: ' + online;
+    document.getElementById('registered-count').innerText = '註冊: ' + snap.size;
+    document.getElementById('players-count').innerText = snap.size;
+
+    // players list
+    document.getElementById('players-list').innerHTML = rows.map(r => {
+      const color = r.status === 'online' ? '#2ecc71' : (r.status === 'idle' ? '#f1c40f' : '#95a5a6');
+      return `<div class="player-row"><div>${escapeHtml(r.name)}</div><div style="display:flex;align-items:center"><span class="status-dot" style="background:${color}"></span><span class="small-muted">${r.status}</span></div></div>`;
+    }).join('');
   });
 }
 
@@ -334,20 +384,12 @@ function renderBoard() {
   }
   myData.board.forEach(num => {
     const div = document.createElement('div');
-    const selected = gameHistory.includes(num);
-    div.className = 'cell' + (selected ? ' selected' : '');
+    div.className = 'cell' + (gameHistory.includes(num) ? ' selected' : '');
     div.innerText = num;
     grid.appendChild(div);
   });
-
   document.getElementById('setup-controls').style.display = myData.locked ? 'none' : 'flex';
-  if(myData.locked) {
-    document.getElementById('status-text').innerText = "盤面已鎖定，祝中獎！";
-    document.getElementById('status-text').style.color = "var(--primary)";
-  } else {
-    document.getElementById('status-text').innerText = "請先鎖定號碼";
-    document.getElementById('status-text').style.color = "var(--success)";
-  }
+  document.getElementById('status-text').innerText = myData.locked ? '盤面已鎖定，祝中獎！' : '請先鎖定號碼';
 }
 
 /* 產生新盤 */
@@ -361,7 +403,10 @@ function generateBoard() {
    鎖定盤面（先檢查 board_index，再 transaction，含樂觀鎖）
    ========================= */
 async function lockBoard() {
-  if(!currentUser || !currentUser.isAnonymous) return alert("請先以玩家身份登入");
+  if(!currentUser || !currentUser.isAnonymous) {
+    alert("請先以玩家身份（匿名）登入再鎖定盤面。若您是管理者，請在另一個瀏覽器或無痕視窗登入管理帳號以避免覆蓋玩家資料。");
+    return;
+  }
   if(!confirm("鎖定後不可更改，確定嗎？")) return;
 
   const bStr = myData.board.join(',');
@@ -371,7 +416,7 @@ async function lockBoard() {
 
   try {
     const idxSnap = await boardIndexRef.get();
-    if (idxSnap.exists) {
+    if(idxSnap.exists) {
       return alert("盤面重複，請重新換號");
     }
 
@@ -379,13 +424,10 @@ async function lockBoard() {
       const playerSnap = await tx.get(playerRef);
       const currentVersion = playerSnap.exists ? (playerSnap.data().version || 0) : 0;
       const idxSnapTx = await tx.get(boardIndexRef);
-      if (idxSnapTx.exists) {
-        throw new Error("board_exists");
-      }
+      if(idxSnapTx.exists) throw new Error("board_exists");
       const knownVersion = myData.version || 0;
-      if (currentVersion !== knownVersion) {
-        throw new Error("version_mismatch");
-      }
+      if(currentVersion !== knownVersion) throw new Error("version_mismatch");
+
       tx.set(boardIndexRef, { uid: currentUser.uid, boardStr: bStr, timestamp: firebase.firestore.FieldValue.serverTimestamp() });
       tx.update(playerRef, {
         board: myData.board,
@@ -407,13 +449,9 @@ async function lockBoard() {
     renderBoard();
     alert("鎖定成功");
   } catch(e) {
-    if(e.message === "board_exists") {
-      alert("盤面已被其他玩家先鎖定，請重新換號");
-    } else if(e.message === "version_mismatch") {
-      alert("資料版本不一致，請重新載入或重試");
-    } else {
-      alert("鎖定失敗: " + (e.message || e));
-    }
+    if(e.message === "board_exists") alert("盤面已被其他玩家先鎖定，請重新換號");
+    else if(e.message === "version_mismatch") alert("資料版本不一致，請重新載入或重試");
+    else alert("鎖定失敗: " + (e.message || e));
   }
 }
 
@@ -457,9 +495,7 @@ async function rejectPending(id) {
   } catch(e) { alert("拒絕失敗"); }
 }
 
-/* =========================
-   管理端：審核 pending_choices（Transaction 檢查是否已開過）
-   ========================= */
+/* 管理端審核 pending（transaction） */
 async function approveLucky(num, pendingId) {
   if(!confirm("確認要把 " + num + " 寫入開獎紀錄？")) return;
   const gameRef = db.collection("game_state").doc("current_game");
@@ -494,7 +530,7 @@ async function approveLucky(num, pendingId) {
 }
 
 /* =========================
-   抽號（管理端） - 使用 pendingNumber 顯示
+   抽號（方案 B：pendingNumber + transaction）
    ========================= */
 async function drawNumber() {
   const ref = db.collection("game_state").doc("current_game");
@@ -505,42 +541,48 @@ async function drawNumber() {
     if(avail.length === 0) return alert("所有號碼已開完");
     const newNum = avail[Math.floor(Math.random()*avail.length)];
 
-    // 先寫入 pendingNumber 與 isRolling
+    // 1) 先寫入 pendingNumber 與 isRolling（無 precondition）
     await ref.update({ isRolling: true, pendingNumber: newNum });
 
+    // 2) 審計開始
     await db.collection("audit_logs").add({
       action: "start_draw",
-      detail: { newNum, triggeredBy: "admin" },
+      detail: { newNum },
       timestamp: firebase.firestore.FieldValue.serverTimestamp()
     });
 
-    setTimeout(async () => {
-      try {
-        await db.runTransaction(async tx => {
-          const g = await tx.get(ref);
-          const history = g.exists ? (g.data().history || []) : [];
-          if(history.includes(newNum)) {
-            tx.update(ref, { isRolling: false, pendingNumber: firebase.firestore.FieldValue.delete(), luckyUser: "" });
-          } else {
-            tx.update(ref, {
-              history: firebase.firestore.FieldValue.arrayUnion(newNum),
-              isRolling: false,
-              pendingNumber: firebase.firestore.FieldValue.delete(),
-              luckyUser: ""
-            });
-          }
-          tx.set(db.collection("audit_logs").doc(), {
-            action: "draw_number",
-            detail: { number: newNum },
-            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+    // 3) 等待動畫時間（管理端會看到 pendingNumber）
+    await new Promise(r => setTimeout(r, 3000));
+
+    // 4) transaction 嘗試把 pendingNumber 推入 history
+    try {
+      await db.runTransaction(async tx => {
+        const g = await tx.get(ref);
+        const h2 = g.exists ? (g.data().history || []) : [];
+        if(h2.includes(newNum)) {
+          tx.update(ref, { isRolling: false, pendingNumber: firebase.firestore.FieldValue.delete(), luckyUser: "" });
+        } else {
+          tx.update(ref, {
+            history: firebase.firestore.FieldValue.arrayUnion(newNum),
+            isRolling: false,
+            pendingNumber: firebase.firestore.FieldValue.delete(),
+            luckyUser: ""
           });
+        }
+        tx.set(db.collection("audit_logs").doc(), {
+          action: "draw_number",
+          detail: { number: newNum },
+          timestamp: firebase.firestore.FieldValue.serverTimestamp()
         });
-      } catch(e) {
-        console.error("寫入開獎失敗", e);
-      }
-    }, 3000);
+      });
+    } catch (txErr) {
+      console.warn('transaction failed, clearing pendingNumber', txErr);
+      await ref.update({ isRolling: false, pendingNumber: firebase.firestore.FieldValue.delete(), luckyUser: "" }).catch(()=>{});
+      throw txErr;
+    }
   } catch(e) {
-    alert("抽號失敗: " + (e.message || e));
+    console.error('drawNumber error', e);
+    alert('抽號失敗: ' + (e.message || e));
   }
 }
 
@@ -550,13 +592,11 @@ async function drawNumber() {
 async function pickLuckyPlayer() {
   try {
     const snap = await db.collection("players").where("locked","==",true).get();
-    const players = snap.docs.map(d => ({ uid: d.id, ...d.data() }));
+    const players = snap.docs.map(d => ({ uid:d.id, ...d.data() }));
     if(players.length === 0) return alert("尚無玩家鎖定盤面");
-
     players.sort((a,b) => (a.maxConsecutive || 0) - (b.maxConsecutive || 0));
     const candidates = players.slice(0, Math.min(15, players.length));
     const lucky = candidates[Math.floor(Math.random()*candidates.length)];
-
     await db.collection("game_state").doc("current_game").update({ luckyUser: lucky.name || lucky.uid });
     await db.collection("audit_logs").add({
       action: "pick_lucky_player",
@@ -570,32 +610,36 @@ async function pickLuckyPlayer() {
 }
 
 /* =========================
-   計算 maxConsecutive
+   計算 maxConsecutive 與賓果通知
    ========================= */
 function calculateMaxConsecutive(board, history) {
   const grid = [];
   for(let i=0;i<5;i++) grid[i] = board.slice(i*5, i*5+5);
-
   let maxLen = 0;
   for(let r=0;r<5;r++) maxLen = Math.max(maxLen, longestStreak(grid[r], history));
-  for(let c=0;c<5;c++) {
-    const col = [];
-    for(let r=0;r<5;r++) col.push(grid[r][c]);
-    maxLen = Math.max(maxLen, longestStreak(col, history));
-  }
-  const diag1 = [], diag2 = [];
-  for(let i=0;i<5;i++) { diag1.push(grid[i][i]); diag2.push(grid[i][4-i]); }
-  maxLen = Math.max(maxLen, longestStreak(diag1, history));
-  maxLen = Math.max(maxLen, longestStreak(diag2, history));
+  for(let c=0;c<5;c++){ const col=[]; for(let r=0;r<5;r++) col.push(grid[r][c]); maxLen = Math.max(maxLen, longestStreak(col, history)); }
+  const diag1=[], diag2=[]; for(let i=0;i<5;i++){ diag1.push(grid[i][i]); diag2.push(grid[i][4-i]); }
+  maxLen = Math.max(maxLen, longestStreak(diag1, history)); maxLen = Math.max(maxLen, longestStreak(diag2, history));
   return maxLen;
 }
 function longestStreak(line, history) {
-  let streak = 0, maxStreak = 0;
-  for(const num of line) {
-    if(history.includes(num)) { streak++; maxStreak = Math.max(maxStreak, streak); }
-    else streak = 0;
-  }
+  let streak=0,maxStreak=0;
+  for(const num of line){ if(history.includes(num)){ streak++; maxStreak=Math.max(maxStreak,streak);} else streak=0; }
   return maxStreak;
+}
+async function notifyBingoIfNeeded(uid, name, boardStr, maxConsecutive) {
+  if(maxConsecutive >= 5) {
+    const eventRef = db.collection('bingo_events').doc(uid);
+    await eventRef.set({
+      uid, name, boardStr, maxConsecutive,
+      timestamp: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge:true }).catch(()=>{});
+    db.collection('audit_logs').add({
+      action:'bingo_declared',
+      detail:{uid,name,maxConsecutive,boardStr},
+      timestamp: firebase.firestore.FieldValue.serverTimestamp()
+    }).catch(()=>{});
+  }
 }
 
 /* =========================
@@ -604,14 +648,10 @@ function longestStreak(line, history) {
 function handleAdminClick() {
   adminClickCount++;
   if(adminClickTimeout) clearTimeout(adminClickTimeout);
-  adminClickTimeout = setTimeout(() => {
+  adminClickTimeout = setTimeout(()=>{ adminClickCount=0; adminClickTimeout=null; }, 3000);
+  if(adminClickCount >= 5) {
     adminClickCount = 0;
-    adminClickTimeout = null;
-  }, ADMIN_CLICK_WINDOW_MS);
-
-  if(adminClickCount >= ADMIN_CLICK_REQUIRED) {
-    adminClickCount = 0;
-    if(adminClickTimeout) { clearTimeout(adminClickTimeout); adminClickTimeout = null; }
+    if(adminClickTimeout){ clearTimeout(adminClickTimeout); adminClickTimeout=null; }
     document.getElementById('admin-login-modal').style.display = 'flex';
   }
 }
@@ -621,22 +661,15 @@ function closeAdminLogin() {
   document.getElementById('admin-email').value = '';
   document.getElementById('admin-pwd').value = '';
 }
-
 async function adminSignIn() {
   const email = document.getElementById('admin-email').value.trim();
   const pwd = document.getElementById('admin-pwd').value;
-  const msgEl = document.getElementById('admin-login-msg');
-  msgEl.innerText = '';
-
-  if(!email || !pwd) {
-    msgEl.innerText = '請輸入 Email 與密碼';
-    return;
-  }
+  const msgEl = document.getElementById('admin-login-msg'); msgEl.innerText = '';
+  if(!email || !pwd){ msgEl.innerText='請輸入 Email 與密碼'; return; }
   try {
     const cred = await auth.signInWithEmailAndPassword(email, pwd);
     const user = cred.user;
     if(!user) throw new Error('登入失敗');
-
     if(ALLOWED_ADMIN_UIDS.includes(user.uid)) {
       closeAdminLogin();
       startAdminAfterAuth(user);
@@ -646,40 +679,33 @@ async function adminSignIn() {
       msgEl.innerText = '此帳號非管理者，請使用管理者帳號登入';
       return;
     }
-  } catch (e) {
+  } catch(e) {
     console.error('adminSignIn error', e);
-    if(e.code === 'auth/user-not-found') msgEl.innerText = '找不到此帳號，請確認 Email 是否正確';
-    else if(e.code === 'auth/wrong-password') msgEl.innerText = '密碼錯誤，請重新輸入';
-    else if(e.code === 'auth/invalid-email') msgEl.innerText = 'Email 格式錯誤';
+    if(e.code === 'auth/user-not-found') msgEl.innerText='找不到此帳號';
+    else if(e.code === 'auth/wrong-password') msgEl.innerText='密碼錯誤';
+    else if(e.code === 'auth/invalid-email') msgEl.innerText='Email 格式錯誤';
     else msgEl.innerText = '登入失敗: ' + (e.message || e);
   }
 }
-
 function startAdminAfterAuth(user) {
-  console.log('Admin signed in:', user.uid);
-  document.getElementById('admin-badge').style.display = 'inline-block';
-  startAdmin();
+  document.getElementById('admin-badge').style.display = ALLOWED_ADMIN_UIDS.includes(user.uid) ? 'inline-block' : 'none';
+  // 進入管理頁（管理頁 UI 已在右側）
+  // 確保 listeners 已啟動
+  startListeners();
+  // show admin controls visually
+  alert('管理者登入成功');
 }
-
 async function adminSignOut() {
   try { await auth.signOut(); } catch(e){ console.warn(e); }
   document.getElementById('admin-badge').style.display = 'none';
-  switchPage('page-login');
-}
-
-/* =========================
-   既有 startAdmin（保留原邏輯）
-   ========================= */
-function startAdmin() {
-  switchPage('page-admin');
+  switchPageToLogin();
 }
 
 /* =========================
    工具函式
    ========================= */
-function encodeKey(s) { return encodeURIComponent(s); }
-function escapeHtml(s) { return String(s).replace(/[&<>"']/g, function(m){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]; }); }
-function switchPage(id) { document.querySelectorAll('.page').forEach(p => p.classList.remove('active')); document.getElementById(id).classList.add('active'); }
+function encodeKey(s){ return encodeURIComponent(s); }
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]); }
 
 /* =========================
    Auth state 監聽與初始化
@@ -687,32 +713,43 @@ function switchPage(id) { document.querySelectorAll('.page').forEach(p => p.clas
 auth.onAuthStateChanged(async user => {
   currentUser = user || null;
   console.log('Auth state changed:', user ? (user.uid + ' anonymous:' + user.isAnonymous) : 'signed out');
-
   if(!user) {
-    switchPage('page-login');
-    if(heartbeatTimer) { clearInterval(heartbeatTimer); heartbeatTimer = null; }
+    switchPageToLogin();
+    if(heartbeatTimer){ clearInterval(heartbeatTimer); heartbeatTimer=null; }
     return;
   }
-
-  // 若為匿名使用者，若尚未載入資料則載入
+  // 若為匿名使用者，載入資料（若尚未）
   if(user.isAnonymous) {
     if(!myData || !myData.board || myData.board.length !== 25) {
       await loadPlayerData(user.uid, document.getElementById('username-input')?.value || "");
     }
+    // 啟動 listeners 與 heartbeat
+    startListeners();
+    if(heartbeatTimer) clearInterval(heartbeatTimer);
+    heartbeatTimer = setInterval(() => {
+      if(currentUser && currentUser.isAnonymous) {
+        db.collection("players").doc(currentUser.uid).update({ lastSeen: firebase.firestore.FieldValue.serverTimestamp() }).catch(()=>{});
+      }
+    }, 15000);
   } else {
     // 非匿名（管理者）登入時，不要自動建立或修改 players/{uid}
     document.getElementById('admin-badge').style.display = ALLOWED_ADMIN_UIDS.includes(user.uid) ? 'inline-block' : 'none';
+    startListeners();
   }
 });
 
 /* =========================
-   清理與卸載
+   清理
    ========================= */
 window.addEventListener('beforeunload', () => {
   if(rollingInterval) clearInterval(rollingInterval);
   if(heartbeatTimer) clearInterval(heartbeatTimer);
 });
-</script>
 
+/* =========================
+   啟動 players listener 以顯示註冊與在線（立即呼叫）
+   ========================= */
+startListeners();
+</script>
 </body>
 </html>
