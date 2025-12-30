@@ -1,57 +1,815 @@
-<!-- index.html v0.9 (測試版：匿名登入 + Firestore 寫入) -->
-<!DOCTYPE html>
-<html lang="zh-TW">
+<!doctype html>
+<html lang="zh-Hant">
 <head>
-  <meta charset="UTF-8">
-  <title>Bingo 測試版</title>
-  <script type="module">
-    // 1. 引入 Firebase SDK (CDN)
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-    import { getFirestore, doc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>2025 尾牙賓果系統</title>
+  <style>
+    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans CJK TC", "Helvetica Neue", Arial; margin: 16px; }
+    header { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+    .board { display:grid; grid-template-columns:repeat(5,64px); gap:6px; margin:12px 0; }
+    .cell { width:64px; height:64px; display:flex; align-items:center; justify-content:center; border:1px solid #ddd; border-radius:6px; font-weight:600; cursor:pointer; user-select:none; background:#fff; }
+    .cell.locked { background:#f3f3f3; cursor:default; }
+    .cell.hit { background:#ffd54f; }
+    .controls { display:flex; gap:8px; margin-top:8px; flex-wrap:wrap; }
+    button { padding:8px 12px; border-radius:6px; border:1px solid #ccc; background:#fff; cursor:pointer; }
+    button.primary { background:#0078d4; color:#fff; border-color:#0078d4; }
+    .admin-badge { font-size:12px; color:#666; }
+    .rolling { font-size:28px; font-weight:700; color:#d32f2f; }
+    .hidden { display:none; }
+    .modal { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.4); }
+    .card { background:#fff; padding:16px; border-radius:8px; min-width:320px; }
+    .stats { margin-top:12px; display:flex; gap:8px; flex-wrap:wrap; }
+    .stat { padding:8px; border:1px solid #eee; border-radius:6px; min-width:120px; }
+    .admin-panel { border:1px dashed #ccc; padding:12px; border-radius:8px; margin-top:12px; }
+    .small { font-size:13px; color:#555; }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h2>2025 尾牙賓果系統</h2>
+      <div class="small">匿名登入 + 即時同步 (Firestore)</div>
+    </div>
+    <div>
+      <div id="rollDisplay" class="rolling">—</div>
+      <div id="adminHint" class="admin-badge">管理員入口：左上角 80x80 點擊 5 次</div>
+    </div>
+  </header>
 
-    // 2. Firebase 專案設定 (請到 Firebase Console → 專案設定 → Web App 拷貝完整 config)
+  <main>
+    <section id="playerSection">
+      <div>
+        <label>玩家名稱： <input id="playerName" placeholder="輸入姓名" /></label>
+      </div>
+
+      <div style="margin-top:8px;">
+        <div class="board" id="boardGrid"></div>
+      </div>
+
+      <div class="controls">
+        <button id="randomBtn">隨機換號</button>
+        <button id="saveBtn" class="primary">保存盤面</button>
+        <button id="lockBtn">鎖定盤面</button>
+        <button id="resetLocalBtn">重置本地盤面</button>
+        <div id="lockedLabel" class="small"></div>
+      </div>
+
+      <div style="margin-top:12px;">
+        <strong>最大連貫長度：</strong> <span id="maxConsecutive">0</span>
+      </div>
+
+      <div style="margin-top:12px;">
+        <strong>已開號碼：</strong> <span id="historyList">—</span>
+      </div>
+    </section>
+
+    <section id="adminSection" class="hidden">
+      <div class="admin-panel">
+        <h3>管理者面板</h3>
+        <div class="controls">
+          <button id="adminDrawBtn" class="primary">隨機抽號 (跑號動畫)</button>
+          <button id="adminPickLuckyBtn">抽幸運兒</button>
+          <button id="adminResetBtn">重置遊戲 (雙重確認)</button>
+          <label><input type="checkbox" id="showListToggle" /> 顯示詳細名單</label>
+        </div>
+
+        <div class="stats" id="statsArea"></div>
+
+        <div id="candidatesArea" class="hidden" style="margin-top:12px;">
+          <h4>幸運兒候選 (locked 且 maxConsecutive 最小的前 15 名)</h4>
+          <ul id="candidatesList"></ul>
+        </div>
+
+        <div style="margin-top:12px;">
+          <h4>Pending Choices</h4>
+          <ul id="pendingList"></ul>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Modals -->
+  <div id="luckyModal" class="modal hidden">
+    <div class="card">
+      <h4>您被選為幸運兒，請輸入號碼 (1-25)</h4>
+      <input id="luckyNumberInput" type="number" min="1" max="25" />
+      <div style="margin-top:8px;">
+        <button id="submitLuckyBtn" class="primary">提交</button>
+        <button id="cancelLuckyBtn">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="confirmResetModal" class="modal hidden">
+    <div class="card">
+      <h4>確認重置遊戲？此操作會刪除 players, pending_choices, audit_logs 並重置 game_state</h4>
+      <div style="margin-top:8px;">
+        <button id="confirmResetBtn" class="primary">確認重置</button>
+        <button id="cancelResetBtn">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Firebase SDKs (modular) -->
+  <script type="module">
+    // ---------------------------
+    // Firebase config - 填入您的專案設定
+    // ---------------------------
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+    import {
+      getAuth,
+      onAuthStateChanged,
+      signInAnonymously
+    } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+    import {
+      getFirestore,
+      doc,
+      getDoc,
+      setDoc,
+      updateDoc,
+      runTransaction,
+      onSnapshot,
+      collection,
+      query,
+      where,
+      orderBy,
+      limit,
+      addDoc,
+      serverTimestamp,
+      deleteDoc,
+      getDocs
+    } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+
     const firebaseConfig = {
-      apiKey: "你的API_KEY",
-      authDomain: "你的專案.firebaseapp.com",
-      projectId: "你的專案ID",
-      storageBucket: "你的專案.appspot.com",
-      messagingSenderId: "你的SenderID",
-      appId: "你的AppID"
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_AUTH_DOMAIN",
+      projectId: "YOUR_PROJECT_ID",
+      // ... 其餘欄位
     };
 
-    // 3. 初始化
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
 
-    // 4. 匿名登入並建立玩家資料
-    document.getElementById("loginBtn").addEventListener("click", async () => {
+    // ---------------------------
+    // UI 元件
+    // ---------------------------
+    const boardGrid = document.getElementById('boardGrid');
+    const randomBtn = document.getElementById('randomBtn');
+    const saveBtn = document.getElementById('saveBtn');
+    const lockBtn = document.getElementById('lockBtn');
+    const resetLocalBtn = document.getElementById('resetLocalBtn');
+    const playerNameInput = document.getElementById('playerName');
+    const lockedLabel = document.getElementById('lockedLabel');
+    const maxConsecutiveEl = document.getElementById('maxConsecutive');
+    const historyListEl = document.getElementById('historyList');
+    const rollDisplay = document.getElementById('rollDisplay');
+
+    const adminSection = document.getElementById('adminSection');
+    const adminDrawBtn = document.getElementById('adminDrawBtn');
+    const adminPickLuckyBtn = document.getElementById('adminPickLuckyBtn');
+    const adminResetBtn = document.getElementById('adminResetBtn');
+    const showListToggle = document.getElementById('showListToggle');
+    const statsArea = document.getElementById('statsArea');
+    const candidatesArea = document.getElementById('candidatesArea');
+    const candidatesList = document.getElementById('candidatesList');
+    const pendingList = document.getElementById('pendingList');
+
+    const luckyModal = document.getElementById('luckyModal');
+    const luckyNumberInput = document.getElementById('luckyNumberInput');
+    const submitLuckyBtn = document.getElementById('submitLuckyBtn');
+    const cancelLuckyBtn = document.getElementById('cancelLuckyBtn');
+
+    const confirmResetModal = document.getElementById('confirmResetModal');
+    const confirmResetBtn = document.getElementById('confirmResetBtn');
+    const cancelResetBtn = document.getElementById('cancelResetBtn');
+
+    // ---------------------------
+    // 應用狀態
+    // ---------------------------
+    let currentUser = null;
+    let currentPlayerDocRef = null;
+    let localBoard = []; // 25 numbers
+    let locked = false;
+    let maxConsecutive = 0;
+    let history = [];
+    let heartbeatTimer = null;
+    let adminMode = false;
+
+    // Admin hidden click detection
+    let clickTimestamps = [];
+
+    // ---------------------------
+    // Helper: generate a random 25-number bingo board (1..25 unique)
+    // ---------------------------
+    function generateBoard() {
+      const nums = Array.from({length:25}, (_,i)=>i+1);
+      for (let i = nums.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [nums[i], nums[j]] = [nums[j], nums[i]];
+      }
+      return nums;
+    }
+
+    function boardToStr(board) {
+      return board.join(',');
+    }
+
+    // ---------------------------
+    // Render board UI
+    // ---------------------------
+    function renderBoard() {
+      boardGrid.innerHTML = '';
+      for (let i = 0; i < 25; i++) {
+        const cell = document.createElement('div');
+        cell.className = 'cell' + (locked ? ' locked' : '');
+        cell.textContent = localBoard[i] ?? '-';
+        cell.dataset.index = i;
+        boardGrid.appendChild(cell);
+      }
+      updateHitsUI();
+    }
+
+    // ---------------------------
+    // Update hits based on history
+    // ---------------------------
+    function updateHitsUI() {
+      const cells = boardGrid.querySelectorAll('.cell');
+      cells.forEach(c => c.classList.remove('hit'));
+      if (!localBoard || localBoard.length !== 25) return;
+      const hits = new Set(history);
+      for (let i = 0; i < 25; i++) {
+        if (hits.has(localBoard[i])) {
+          cells[i].classList.add('hit');
+        }
+      }
+    }
+
+    // ---------------------------
+    // Max consecutive calculation (12 lines)
+    // ---------------------------
+    function calcMaxConsecutive(board, historyArr) {
+      if (!board || board.length !== 25) return 0;
+      const hits = new Set(historyArr);
+      const lines = [];
+
+      // rows
+      for (let r = 0; r < 5; r++) {
+        const row = [];
+        for (let c = 0; c < 5; c++) row.push(board[r*5 + c]);
+        lines.push(row);
+      }
+      // cols
+      for (let c = 0; c < 5; c++) {
+        const col = [];
+        for (let r = 0; r < 5; r++) col.push(board[r*5 + c]);
+        lines.push(col);
+      }
+      // diag TL-BR
+      lines.push([board[0], board[6], board[12], board[18], board[24]]);
+      // diag TR-BL
+      lines.push([board[4], board[8], board[12], board[16], board[20]]);
+
+      let best = 0;
+      for (const line of lines) {
+        let cur = 0;
+        for (const num of line) {
+          if (hits.has(num)) {
+            cur++;
+            if (cur > best) best = cur;
+          } else {
+            cur = 0;
+          }
+        }
+      }
+      return best;
+    }
+
+    // ---------------------------
+    // Auth & Initialization
+    // ---------------------------
+    async function initAuth() {
+      // Sign in anonymously if not signed in
+      onAuthStateChanged(auth, async (user) => {
+        if (user) {
+          currentUser = user;
+          currentPlayerDocRef = doc(db, 'players', user.uid);
+          console.log('Signed in as', user.uid);
+          await initPlayerState();
+          startHeartbeat();
+          subscribeGameState();
+          subscribePendingChoices();
+          subscribeAdminPending(); // admin view of pending
+        } else {
+          try {
+            await signInAnonymously(auth);
+          } catch (err) {
+            console.error('Anonymous sign-in failed', err);
+            alert('匿名登入失敗，請檢查網路與 Firebase 設定');
+          }
+        }
+      });
+    }
+
+    // ---------------------------
+    // Initialize player state: load existing players/{uid} if exists
+    // ---------------------------
+    async function initPlayerState() {
+      const snap = await getDoc(currentPlayerDocRef);
+      if (snap.exists()) {
+        const data = snap.data();
+        playerNameInput.value = data.name || '';
+        localBoard = data.board || generateBoard();
+        locked = !!data.locked;
+        maxConsecutive = data.maxConsecutive || 0;
+        lockedLabel.textContent = locked ? '已鎖定' : '';
+        renderBoard();
+        maxConsecutiveEl.textContent = maxConsecutive;
+      } else {
+        // new player
+        localBoard = generateBoard();
+        locked = false;
+        renderBoard();
+      }
+    }
+
+    // ---------------------------
+    // Save board with transaction to ensure uniqueness
+    // Implementation detail:
+    // - We attempt to create a reservation doc at board_index/{boardStr}
+    // - If creation succeeds, we write players/{uid}
+    // Note: Ensure your Firestore rules allow writes to board_index if you use this approach.
+    // ---------------------------
+    async function saveBoardTransaction() {
+      if (!currentUser) return alert('尚未登入');
+      const name = (playerNameInput.value || '').trim();
+      if (!name) return alert('請輸入姓名');
+
+      const boardStr = boardToStr(localBoard);
+      const boardIndexRef = doc(db, 'board_index', boardStr);
+      const playerRef = currentPlayerDocRef;
+      const auditRef = collection(db, 'audit_logs');
+
       try {
-        const result = await signInAnonymously(auth);
-        const uid = result.user.uid;
-        console.log("匿名登入成功:", uid);
-
-        // 建立 players/{uid} 文件
-        await setDoc(doc(db, "players", uid), {
-          name: "測試玩家",
-          board: Array.from({length:25}, (_,i)=>i+1),
-          boardStr: Array.from({length:25}, (_,i)=>i+1).join(","),
-          locked: false,
-          maxConsecutive: 0,
-          lastSeen: serverTimestamp()
+        await runTransaction(db, async (tx) => {
+          const idxSnap = await tx.get(boardIndexRef);
+          if (idxSnap.exists()) {
+            throw new Error('盤面重複，請重新換號');
+          }
+          // create index reservation
+          tx.set(boardIndexRef, { owner: currentUser.uid, createdAt: serverTimestamp() });
+          // write player doc
+          tx.set(playerRef, {
+            name,
+            board: localBoard,
+            boardStr,
+            locked: false,
+            maxConsecutive: 0,
+            lastSeen: Date.now(),
+            version: 1
+          });
+          // write audit log
+          tx.set(doc(auditRef), {
+            action: 'save_board',
+            detail: { uid: currentUser.uid, name, boardStr },
+            timestamp: serverTimestamp()
+          });
         });
-
-        alert("玩家資料建立完成！");
+        lockedLabel.textContent = '';
+        alert('盤面已保存，請點選「鎖定盤面」以完成鎖定');
       } catch (err) {
-        console.error("登入或寫入失敗:", err);
-        alert("登入失敗，請檢查 Firebase Config 或網路環境");
+        console.error('saveBoardTransaction error', err);
+        alert(err.message || '保存失敗');
+      }
+    }
+
+    // ---------------------------
+    // Lock board (update players/{uid}.locked = true)
+    // ---------------------------
+    async function lockBoard() {
+      if (!currentUser) return alert('尚未登入');
+      try {
+        await runTransaction(db, async (tx) => {
+          const pSnap = await tx.get(currentPlayerDocRef);
+          if (!pSnap.exists()) throw new Error('請先保存盤面');
+          const data = pSnap.data();
+          if (data.locked) throw new Error('盤面已鎖定');
+          // set locked true and increment version
+          tx.update(currentPlayerDocRef, {
+            locked: true,
+            version: (data.version || 1) + 1
+          });
+          // audit
+          tx.set(doc(collection(db, 'audit_logs')), {
+            action: 'lock_board',
+            detail: { uid: currentUser.uid, boardStr: data.boardStr },
+            timestamp: serverTimestamp()
+          });
+        });
+        locked = true;
+        lockedLabel.textContent = '已鎖定';
+        renderBoard();
+        alert('盤面已鎖定');
+      } catch (err) {
+        console.error('lockBoard error', err);
+        alert(err.message || '鎖定失敗');
+      }
+    }
+
+    // ---------------------------
+    // Submit pending choice (for lucky user)
+    // ---------------------------
+    async function submitPendingChoice(number) {
+      if (!currentUser) return alert('尚未登入');
+      const pendingRef = doc(db, 'pending_choices', currentUser.uid);
+      try {
+        await setDoc(pendingRef, {
+          number: Number(number),
+          playerName: playerNameInput.value || '',
+          timestamp: serverTimestamp()
+        });
+        // audit
+        await addDoc(collection(db, 'audit_logs'), {
+          action: 'submit_pending_choice',
+          detail: { uid: currentUser.uid, number: Number(number) },
+          timestamp: serverTimestamp()
+        });
+        alert('已提交，請等待管理端確認');
+      } catch (err) {
+        console.error('submitPendingChoice error', err);
+        alert('提交失敗：' + (err.message || err));
+      }
+    }
+
+    // ---------------------------
+    // Admin: confirm pending choice -> transaction to push into game_state.history
+    // ---------------------------
+    async function adminConfirmPending(uid) {
+      const pendingRef = doc(db, 'pending_choices', uid);
+      const gameStateRef = doc(db, 'game_state', 'current_game');
+      try {
+        await runTransaction(db, async (tx) => {
+          const pendingSnap = await tx.get(pendingRef);
+          if (!pendingSnap.exists()) throw new Error('pending not found');
+          const { number } = pendingSnap.data();
+          const gsSnap = await tx.get(gameStateRef);
+          const gs = gsSnap.exists() ? gsSnap.data() : { history: [] };
+          const hist = gs.history || [];
+          if (hist.includes(number)) throw new Error('號碼已被開出');
+          // push number
+          const newHistory = hist.concat([number]);
+          tx.update(gameStateRef, { history: newHistory });
+          // delete pending
+          tx.delete(pendingRef);
+          // audit
+          tx.set(doc(collection(db, 'audit_logs')), {
+            action: 'confirm_pending',
+            detail: { uid, number },
+            timestamp: serverTimestamp()
+          });
+        });
+        alert('已確認並加入歷史');
+      } catch (err) {
+        console.error('adminConfirmPending error', err);
+        alert('確認失敗：' + (err.message || err));
+      }
+    }
+
+    // ---------------------------
+    // Admin: draw a random number (isRolling animation -> transaction push)
+    // ---------------------------
+    async function adminDrawNumber() {
+      const gameStateRef = doc(db, 'game_state', 'current_game');
+      try {
+        // set isRolling true (admin-only write)
+        await updateDoc(gameStateRef, { isRolling: true });
+      } catch (e) {
+        // if doc doesn't exist, create it
+        await setDoc(gameStateRef, { history: [], isRolling: true, luckyUser: '', status: 'playing' });
+      }
+
+      // simple animation: show random numbers for 2s
+      const start = Date.now();
+      const anim = setInterval(() => {
+        const r = Math.floor(Math.random() * 25) + 1;
+        rollDisplay.textContent = r;
+      }, 120);
+
+      setTimeout(async () => {
+        clearInterval(anim);
+        // transaction: pick a number not in history
+        try {
+          await runTransaction(db, async (tx) => {
+            const gsSnap = await tx.get(gameStateRef);
+            const gs = gsSnap.exists() ? gsSnap.data() : { history: [] };
+            const hist = gs.history || [];
+            const pool = Array.from({length:25}, (_,i)=>i+1).filter(n => !hist.includes(n));
+            if (pool.length === 0) throw new Error('所有號碼已開完');
+            const pick = pool[Math.floor(Math.random() * pool.length)];
+            const newHistory = hist.concat([pick]);
+            tx.update(gameStateRef, { history: newHistory, isRolling: false });
+            tx.set(doc(collection(db, 'audit_logs')), {
+              action: 'draw_number',
+              detail: { pick },
+              timestamp: serverTimestamp()
+            });
+            rollDisplay.textContent = pick;
+          });
+        } catch (err) {
+          console.error('adminDrawNumber transaction error', err);
+          alert('抽號失敗：' + (err.message || err));
+          // ensure isRolling false
+          try { await updateDoc(gameStateRef, { isRolling: false }); } catch(e){}
+        }
+      }, 2000);
+    }
+
+    // ---------------------------
+    // Admin: pick lucky user (locked=true 且 maxConsecutive 最小的前 15 名)
+    // ---------------------------
+    async function adminPickLucky() {
+      // query locked players and sort by maxConsecutive asc, limit 15
+      try {
+        const q = query(collection(db, 'players'), orderBy('maxConsecutive', 'asc'), limit(15));
+        const snaps = await getDocs(q);
+        const candidates = [];
+        snaps.forEach(s => {
+          const d = s.data();
+          if (d.locked) candidates.push({ uid: s.id, name: d.name, maxConsecutive: d.maxConsecutive || 0 });
+        });
+        // show candidates
+        candidatesList.innerHTML = '';
+        candidates.forEach(c => {
+          const li = document.createElement('li');
+          li.textContent = `${c.name} (${c.uid}) — maxConsecutive: ${c.maxConsecutive}`;
+          candidatesList.appendChild(li);
+        });
+        candidatesArea.classList.remove('hidden');
+
+        // pick one randomly among candidates
+        if (candidates.length === 0) return alert('沒有符合條件的候選人');
+        const pick = candidates[Math.floor(Math.random() * candidates.length)];
+        // update game_state.luckyUser
+        await updateDoc(doc(db, 'game_state', 'current_game'), { luckyUser: pick.uid });
+        // audit
+        await addDoc(collection(db, 'audit_logs'), {
+          action: 'pick_lucky',
+          detail: { uid: pick.uid, name: pick.name },
+          timestamp: serverTimestamp()
+        });
+        alert(`已選出幸運兒：${pick.name}`);
+      } catch (err) {
+        console.error('adminPickLucky error', err);
+        alert('抽幸運兒失敗：' + (err.message || err));
+      }
+    }
+
+    // ---------------------------
+    // Admin: reset game (double confirm)
+    // ---------------------------
+    async function adminResetGame() {
+      confirmResetModal.classList.remove('hidden');
+    }
+    async function doAdminResetGame() {
+      // Note: batch deletes may be limited; for event small scale this is acceptable.
+      try {
+        // delete players
+        const playersSnap = await getDocs(collection(db, 'players'));
+        for (const p of playersSnap.docs) {
+          await deleteDoc(doc(db, 'players', p.id));
+        }
+        // delete pending_choices
+        const pendSnap = await getDocs(collection(db, 'pending_choices'));
+        for (const p of pendSnap.docs) {
+          await deleteDoc(doc(db, 'pending_choices', p.id));
+        }
+        // delete audit_logs
+        const auditSnap = await getDocs(collection(db, 'audit_logs'));
+        for (const a of auditSnap.docs) {
+          await deleteDoc(doc(db, 'audit_logs', a.id));
+        }
+        // reset game_state
+        await setDoc(doc(db, 'game_state', 'current_game'), { history: [], isRolling: false, luckyUser: '', status: 'waiting' });
+        alert('遊戲已重置');
+        confirmResetModal.classList.add('hidden');
+      } catch (err) {
+        console.error('doAdminResetGame error', err);
+        alert('重置失敗：' + (err.message || err));
+      }
+    }
+
+    // ---------------------------
+    // Subscriptions
+    // ---------------------------
+    function subscribeGameState() {
+      const gsRef = doc(db, 'game_state', 'current_game');
+      onSnapshot(gsRef, (snap) => {
+        const data = snap.exists() ? snap.data() : { history: [], isRolling: false, luckyUser: '', status: 'waiting' };
+        history = data.history || [];
+        historyListEl.textContent = history.join(', ') || '—';
+        updateHitsUI();
+        // update maxConsecutive for current player
+        if (currentUser && localBoard && localBoard.length === 25) {
+          const newMax = calcMaxConsecutive(localBoard, history);
+          maxConsecutiveEl.textContent = newMax;
+          // write back to players/{uid}.maxConsecutive (player can update own doc)
+          updateDoc(currentPlayerDocRef, { maxConsecutive: newMax }).catch(e => {
+            // if update fails (e.g., doc missing), ignore for now
+            console.warn('update maxConsecutive failed', e);
+          });
+        }
+        // show rolling state
+        rollDisplay.textContent = data.isRolling ? '...' : (history[history.length-1] ?? '—');
+        // if current user is luckyUser, show modal
+        if (data.luckyUser && currentUser && data.luckyUser === currentUser.uid) {
+          // show lucky modal
+          luckyModal.classList.remove('hidden');
+        } else {
+          luckyModal.classList.add('hidden');
+        }
+      });
+    }
+
+    // pending_choices subscription for admin view
+    function subscribePendingChoices() {
+      // players can read their own pending; admin will see all via adminPending subscription
+      const pendingRef = doc(db, 'pending_choices', currentUser ? currentUser.uid : '__none__');
+      // no global subscription here for players
+    }
+
+    // admin pending subscription (admin-only)
+    function subscribeAdminPending() {
+      // attempt to listen to all pending choices (admin only)
+      const pendCol = collection(db, 'pending_choices');
+      onSnapshot(pendCol, (snap) => {
+        pendingList.innerHTML = '';
+        snap.forEach(d => {
+          const data = d.data();
+          const li = document.createElement('li');
+          li.textContent = `${d.id} — ${data.number} (${new Date(data.timestamp?.toMillis?.() ?? Date.now()).toLocaleTimeString()})`;
+          const btn = document.createElement('button');
+          btn.textContent = '確認';
+          btn.onclick = () => adminConfirmPending(d.id);
+          li.appendChild(btn);
+          pendingList.appendChild(li);
+        });
+      });
+    }
+
+    // ---------------------------
+    // Heartbeat: update lastSeen every 15s
+    // ---------------------------
+    function startHeartbeat() {
+      if (!currentUser) return;
+      if (heartbeatTimer) clearInterval(heartbeatTimer);
+      const tick = async () => {
+        try {
+          await updateDoc(currentPlayerDocRef, { lastSeen: Date.now() });
+        } catch (err) {
+          // if doc doesn't exist, create minimal doc
+          try {
+            await setDoc(currentPlayerDocRef, { name: playerNameInput.value || '', board: localBoard, boardStr: boardToStr(localBoard), locked: locked, maxConsecutive: maxConsecutive, lastSeen: Date.now(), version: 1 });
+          } catch(e){}
+        }
+      };
+      tick();
+      heartbeatTimer = setInterval(tick, 15000);
+    }
+
+    // ---------------------------
+    // UI Events
+    // ---------------------------
+    randomBtn.addEventListener('click', () => {
+      if (locked) return alert('盤面已鎖定，無法換號');
+      localBoard = generateBoard();
+      renderBoard();
+    });
+
+    resetLocalBtn.addEventListener('click', () => {
+      if (confirm('確定要重置本地盤面？')) {
+        localBoard = generateBoard();
+        locked = false;
+        lockedLabel.textContent = '';
+        renderBoard();
       }
     });
+
+    saveBtn.addEventListener('click', () => {
+      saveBoardTransaction();
+    });
+
+    lockBtn.addEventListener('click', () => {
+      lockBoard();
+    });
+
+    // board cell click: allow manual swap if not locked
+    boardGrid.addEventListener('click', (e) => {
+      if (locked) return;
+      const cell = e.target.closest('.cell');
+      if (!cell) return;
+      const idx = Number(cell.dataset.index);
+      const val = prompt('輸入數字 1-25（不可重複）', localBoard[idx]);
+      if (!val) return;
+      const n = Number(val);
+      if (!Number.isInteger(n) || n < 1 || n > 25) return alert('數字需為 1-25 的整數');
+      if (localBoard.includes(n) && localBoard[idx] !== n) return alert('盤面數字不可重複');
+      localBoard[idx] = n;
+      renderBoard();
+    });
+
+    // Lucky modal
+    submitLuckyBtn.addEventListener('click', () => {
+      const n = Number(luckyNumberInput.value);
+      if (!Number.isInteger(n) || n < 1 || n > 25) return alert('請輸入 1-25 的整數');
+      submitPendingChoice(n);
+      luckyModal.classList.add('hidden');
+    });
+    cancelLuckyBtn.addEventListener('click', () => {
+      luckyModal.classList.add('hidden');
+    });
+
+    // Admin controls
+    adminDrawBtn.addEventListener('click', () => {
+      adminDrawNumber();
+    });
+    adminPickLuckyBtn.addEventListener('click', () => {
+      adminPickLucky();
+    });
+    adminResetBtn.addEventListener('click', () => {
+      adminResetGame();
+    });
+    confirmResetBtn.addEventListener('click', () => {
+      doAdminResetGame();
+    });
+    cancelResetBtn.addEventListener('click', () => {
+      confirmResetModal.classList.add('hidden');
+    });
+
+    showListToggle.addEventListener('change', () => {
+      if (showListToggle.checked) {
+        // show detailed list (requires admin read)
+        loadPlayerList();
+      } else {
+        statsArea.innerHTML = '';
+      }
+    });
+
+    async function loadPlayerList() {
+      try {
+        const snaps = await getDocs(collection(db, 'players'));
+        statsArea.innerHTML = '';
+        snaps.forEach(s => {
+          const d = s.data();
+          const div = document.createElement('div');
+          div.className = 'stat';
+          div.innerHTML = `<strong>${d.name || s.id}</strong><div>maxConsecutive: ${d.maxConsecutive || 0}</div><div>locked: ${d.locked ? 'Y' : 'N'}</div>`;
+          statsArea.appendChild(div);
+        });
+      } catch (err) {
+        console.error('loadPlayerList error', err);
+      }
+    }
+
+    // Admin hidden entry: left top 80x80 area click 5 times within 3s -> prompt PIN 2025
+    document.addEventListener('click', (e) => {
+      // approximate left-top 80x80 area
+      if (e.clientX <= 80 && e.clientY <= 80) {
+        const now = Date.now();
+        clickTimestamps.push(now);
+        // keep last 5
+        if (clickTimestamps.length > 5) clickTimestamps.shift();
+        if (clickTimestamps.length === 5 && (now - clickTimestamps[0]) <= 3000) {
+          const pin = prompt('輸入管理員 PIN');
+          if (pin === '2025') {
+            adminMode = true;
+            adminSection.classList.remove('hidden');
+            alert('管理者模式已啟用');
+          } else {
+            alert('PIN 錯誤');
+          }
+          clickTimestamps = [];
+        }
+      }
+    });
+
+    // ---------------------------
+    // Initial render & start
+    // ---------------------------
+    // prepare empty board UI
+    localBoard = generateBoard();
+    renderBoard();
+    initAuth();
+
+    // ---------------------------
+    // Notes / Implementation caveats (in-code comments)
+    // - This index.html implements the client-side flows described in your spec:
+    //   - Anonymous auth, players/{uid} create/update, heartbeat, maxConsecutive calc on history updates.
+    //   - Two-step lucky flow: admin sets game_state.luckyUser -> lucky user submits pending_choices/{uid} -> admin confirms -> transaction pushes to game_state.history.
+    // - Uniqueness reservation uses a 'board_index/{boardStr}' document. Ensure your Firestore security rules allow writes to this collection or adapt to your rules.
+    // - Security: audit_logs are written for key actions. Your rules should allow authenticated users to create audit_logs (as in your rules).
+    // - Admin operations assume the admin client is authenticated with an admin UID or custom token that satisfies your isAdmin() rule.
+    // ---------------------------
   </script>
-</head>
-<body>
-  <h1>Bingo 測試版</h1>
-  <button id="loginBtn">匿名登入並建立玩家資料</button>
 </body>
 </html>
