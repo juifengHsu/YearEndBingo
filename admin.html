@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <title>2025 尾牙賓果 - 管理後台</title>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <style>
+        body { font-family: sans-serif; background: #2c3e50; color: white; padding: 20px; }
+        .dashboard { display: grid; grid-template-columns: 1fr 2fr; gap: 20px; }
+        .card { background: #34495e; padding: 20px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+        .big-btn { width: 100%; padding: 20px; font-size: 1.5rem; cursor: pointer; border: none; border-radius: 5px; margin-bottom: 10px; }
+        .draw-btn { background: #e74c3c; color: white; }
+        .lucky-btn { background: #f1c40f; color: #2c3e50; }
+        .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+        .stat-box { background: #1a252f; padding: 10px; text-align: center; border-radius: 5px; }
+        .stat-val { font-size: 1.8rem; font-weight: bold; color: #3498db; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border-bottom: 1px solid #455a64; padding: 10px; text-align: left; }
+        .history-tag { display: inline-block; background: #3498db; padding: 5px 10px; border-radius: 20px; margin: 3px; }
+    </style>
+</head>
+<body>
+    <h1>🧧 2025 賓果管理中心</h1>
+    
+    <div class="dashboard">
+        <div class="card">
+            <h2>遊戲控制</h2>
+            <button class="big-btn draw-btn" onclick="drawNumber()">🎲 隨機抽號</button>
+            <button class="big-btn lucky-btn" onclick="pickLuckyPlayer()">🌟 抽幸運兒</button>
+            <hr>
+            <h3>開獎歷史</h3>
+            <div id="history-list"></div>
+            <button onclick="resetGame()" style="margin-top:20px; background:none; color:#95a5a6; border:1px solid #95a5a6;">重置遊戲</button>
+        </div>
+
+        <div class="card">
+            <h2>即時戰況</h2>
+            <div class="stat-grid">
+                <div class="stat-box">在線 / 總人數<br><span class="stat-val" id="count-online">0</span> / <span id="count-total">0</span></div>
+                <div class="stat-box">已鎖定盤面<br><span class="stat-val" id="count-locked">0</span></div>
+            </div>
+            
+            <h3>分數分佈 (Max Consecutive)</h3>
+            <div id="score-distribution">載入中...</div>
+
+            <h3>待處理選號 (Pending)</h3>
+            <div id="pending-list">無</div>
+
+            <div style="margin-top:20px;">
+                <label><input type="checkbox" id="show-list-toggle" onchange="togglePlayerList()"> 顯示完整玩家名單</label>
+            </div>
+            <table id="player-table" style="display:none;">
+                <thead><tr><th>姓名</th><th>分數</th><th>狀態</th></tr></thead>
+                <tbody id="player-list-body"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // 配置同玩家端
+        // Import the functions you need from the SDKs you need               
+          // Your web app's Firebase configuration
+          // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+          const firebaseConfig = {
+            apiKey: "AIzaSyCLTGzCZUQm2ZzqfdBHk9D4xYpagaVtX7w",
+            authDomain: "yearendbingo.firebaseapp.com",
+            projectId: "yearendbingo",
+            storageBucket: "yearendbingo.firebasestorage.app",
+            messagingSenderId: "563353011392",
+            appId: "1:563353011392:web:717976a176bc22a04d5925",
+            measurementId: "G-M6EVYSPNJ9"
+          };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        let allPlayers = [];
+        let gameHistory = [];
+
+        // 監聽全域狀態
+        db.collection("game_state").doc("current_game").onSnapshot(doc => {
+            const data = doc.data();
+            gameHistory = data.history || [];
+            document.getElementById('history-list').innerHTML = gameHistory.map(n => `<span class="history-tag">${n}</span>`).join('');
+        });
+
+        // 監聽所有玩家 (用於統計)
+        db.collection("players").onSnapshot(snapshot => {
+            allPlayers = snapshot.docs.map(d => ({id: d.id, ...d.data()}));
+            updateStats();
+        });
+
+        // 監聽 Pending Choices (幸運兒選號)
+        db.collection("pending_choices").onSnapshot(snapshot => {
+            const list = snapshot.docs.map(d => ({id: d.id, ...d.data()}));
+            const container = document.getElementById('pending-list');
+            if(list.length === 0) {
+                container.innerHTML = "等待玩家輸入...";
+            } else {
+                container.innerHTML = list.map(p => `
+                    <div style="background:#2ecc71; color:white; padding:10px; margin-bottom:5px; border-radius:5px;">
+                        ${p.playerName} 選了 <b>${p.number}</b> 
+                        <button onclick="approveNumber('${p.id}', ${p.number})">確認寫入</button>
+                    </div>
+                `).join('');
+            }
+        });
+
+        function updateStats() {
+            const total = allPlayers.length;
+            const locked = allPlayers.filter(p => p.locked).length;
+            const now = Date.now();
+            const online = allPlayers.filter(p => (now - (p.lastSeen?.toMillis?.() || 0)) < 30000).length;
+
+            document.getElementById('count-total').innerText = total;
+            document.getElementById('count-locked').innerText = locked;
+            document.getElementById('count-online').innerText = online;
+
+            // 分數分佈
+            const dist = {1:0, 2:0, 3:0, 4:0, 5:0};
+            allPlayers.forEach(p => { if(p.maxConsecutive) dist[p.maxConsecutive]++ });
+            document.getElementById('score-distribution').innerHTML = Object.entries(dist).map(([s, c]) => 
+                `[${s}連]: ${c}人 `).join(' | ');
+
+            // 渲染列表
+            const tbody = document.getElementById('player-list-body');
+            tbody.innerHTML = allPlayers.sort((a,b) => b.maxConsecutive - a.maxConsecutive).map(p => `
+                <tr>
+                    <td>${p.name}</td>
+                    <td>${p.maxConsecutive || 0}</td>
+                    <td>${p.locked ? '✅' : '⏳'}</td>
+                </tr>
+            `).join('');
+        }
+
+        async function drawNumber() {
+            // 隨機產生 1-25 且不在 history 中的號碼
+            const available = Array.from({length:25}, (_, i) => i+1).filter(n => !gameHistory.includes(n));
+            if(available.length === 0) return alert("全部抽完了！");
+            
+            const newNum = available[Math.floor(Math.random() * available.length)];
+            
+            const ref = db.collection("game_state").doc("current_game");
+            await ref.update({ isRolling: true });
+            
+            setTimeout(async () => {
+                await ref.update({
+                    history: firebase.firestore.FieldValue.arrayUnion(newNum),
+                    isRolling: false,
+                    luckyUser: "" // 清除幸運兒狀態
+                });
+            }, 2000);
+        }
+
+        async function pickLuckyPlayer() {
+            const pool = allPlayers.filter(p => p.locked).sort((a,b) => a.maxConsecutive - b.maxConsecutive).slice(0, 15);
+            if(pool.length === 0) return alert("目前沒有鎖定盤面的玩家");
+            
+            const lucky = pool[Math.floor(Math.random() * pool.length)];
+            await db.collection("game_state").doc("current_game").update({
+                luckyUser: lucky.name
+            });
+            alert("抽中幸運兒: " + lucky.name);
+        }
+
+        async function approveNumber(uid, num) {
+            const ref = db.collection("game_state").doc("current_game");
+            await ref.update({
+                history: firebase.firestore.FieldValue.arrayUnion(num),
+                luckyUser: ""
+            });
+            await db.collection("pending_choices").doc(uid).delete();
+        }
+
+        function togglePlayerList() {
+            const show = document.getElementById('show-list-toggle').checked;
+            document.getElementById('player-table').style.display = show ? 'table' : 'none';
+        }
+
+        async function resetGame() {
+            if(!confirm("確定要重置所有人的資料與號碼嗎？")) return;
+            // 注意：這裡僅重置 history，正式環境需批次重置 players 資料
+            await db.collection("game_state").doc("current_game").set({
+                history: [],
+                isRolling: false,
+                luckyUser: ""
+            });
+        }
+    </script>
+</body>
+</html>
