@@ -3,41 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>2025 尾牙賓果系統 0.01</title>
+    <title>2025 尾牙賓果系統  0.02</title>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
-
     <style>
         :root { --primary: #d32f2f; --secondary: #ffc107; --bg: #f8f9fa; --success: #2e7d32; --dark: #2c3e50; }
         body { font-family: -apple-system, system-ui, sans-serif; margin: 0; background: var(--bg); text-align: center; color: #333; user-select: none; }
-        
-        /* 通用頁面控制 */
         .page { display: none !important; padding: 20px; box-sizing: border-box; min-height: 100vh; }
         .page.active { display: flex !important; flex-direction: column; align-items: center; }
-
-        /* --- 玩家樣式 --- */
         .login-container { margin-top: 15vh; width: 100%; max-width: 320px; }
         h1 { color: var(--primary); font-size: 2.5rem; cursor: pointer; }
         .grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; width: 100%; max-width: 360px; background: #fff; padding: 10px; border-radius: 16px; box-shadow: 0 8px 20px rgba(0,0,0,0.08); }
         .cell { aspect-ratio: 1; border: 1px solid #f0f0f0; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; font-weight: 700; border-radius: 8px; background: #fafafa; }
         .cell.selected { background: var(--secondary); color: #b71c1c; }
         .cell.bingo-line { background: var(--primary) !important; color: white !important; animation: pulse 1s infinite; }
-        .big-number { font-size: 5rem; color: var(--primary); font-weight: 800; margin: 10px 0; }
-        
-        /* --- 管理端專屬樣式 --- */
+        .big-number { font-size: 5rem; color: var(--primary); font-weight: 800; margin: 10px 0; min-height: 100px; }
         #page-admin { background: var(--dark); color: white; text-align: left; align-items: stretch; }
         .admin-card { background: #34495e; padding: 15px; border-radius: 10px; margin-bottom: 15px; }
-        .admin-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        .history-tag { display: inline-block; background: #3498db; padding: 4px 8px; border-radius: 4px; margin: 2px; font-size: 0.8rem; }
-        table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
-        th, td { padding: 8px; border-bottom: 1px solid #455a64; text-align: left; }
-
-        /* 按鈕與輸入 */
-        button { padding: 12px; border: none; border-radius: 8px; background: var(--primary); color: white; font-weight: bold; cursor: pointer; }
-        button:disabled { background: #ccc; }
+        button { padding: 12px; border: none; border-radius: 8px; background: var(--primary); color: white; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        button:active { transform: scale(0.95); }
         input { padding: 12px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 10px; width: 80%; text-align: center; }
-
         @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
     </style>
 </head>
@@ -46,9 +32,8 @@
     <div id="page-login" class="page active">
         <div class="login-container">
             <h1 onclick="handleAdminClick()">🧧 2025<br>尾牙賓果</h1>
-            <input type="text" id="username-input" placeholder="請輸入姓名">
+            <input type="text" id="username-input" placeholder="請輸入真實姓名">
             <button id="btn-login" onclick="handleLogin()" style="width: 85%;">進入遊戲</button>
-            <div id="login-msg" style="color: red; margin-top: 10px;"></div>
         </div>
     </div>
 
@@ -58,57 +43,37 @@
             <span id="status-tag">🟢 在線</span>
         </div>
         <div class="big-number" id="current-draw">READY</div>
-        <div id="status-text" style="font-weight:bold; margin-bottom:10px; color:var(--success);">等待開獎</div>
+        <div id="status-text" style="font-weight:bold; margin-bottom:10px; color:var(--success);">請先保存盤面</div>
         <div class="grid" id="bingo-grid"></div>
-        <div id="setup-controls" style="margin-top:15px; display:flex; gap:10px;">
-            <button onclick="generateBoard()" style="background:#546e7a;">🎲 換號碼</button>
-            <button onclick="lockBoard()" style="background:var(--success);">🔒 鎖定盤面</button>
+        <div id="setup-controls" style="margin-top:15px; display:flex; gap:10px; width:100%; max-width:360px;">
+            <button onclick="generateBoard()" style="background:#546e7a; flex:1;">🎲 隨機換號</button>
+            <button onclick="lockBoard()" id="btn-lock-real" style="background:var(--success); flex:1;">🔒 保存盤面</button>
         </div>
     </div>
 
     <div id="page-admin" class="page">
-        <h2>⚙️ 賓果大腦 (管理員)</h2>
+        <h2>⚙️ 管理員控制台</h2>
         <div class="admin-card">
-            <button onclick="drawNumber()" style="width:100%; background:#e67e22; margin-bottom:10px;">🎲 隨機抽號</button>
-            <button onclick="pickLuckyPlayer()" style="width:100%; background:var(--secondary); color:#333;">🌟 抽幸運兒</button>
+            <button onclick="drawNumber()" style="width:100%; background:#e67e22; margin-bottom:10px; font-size:1.2rem;">🎲 隨機抽號碼</button>
+            <button onclick="pickLuckyPlayer()" style="width:100%; background:var(--secondary); color:#333; font-size:1.2rem;">🌟 抽天選之人</button>
         </div>
-        
-        <div class="admin-grid">
-            <div class="admin-card">
-                已抽號碼: <div id="admin-history" style="margin-top:5px;"></div>
-            </div>
-            <div class="admin-card">
-                統計: <br>
-                在線: <span id="stat-online">0</span><br>
-                分數: <span id="stat-scores" style="font-size:0.7rem;"></span>
-            </div>
-        </div>
-
+        <div class="admin-card">開獎歷史: <div id="admin-history" style="word-break: break-all; margin-top:5px; color:var(--secondary);"></div></div>
         <div id="admin-pending-area" class="admin-card" style="display:none; border:2px solid var(--secondary);">
-            <strong>待審核號碼:</strong>
-            <div id="pending-list"></div>
+            <strong>待審核選號:</strong> <div id="pending-list"></div>
         </div>
-
-        <div class="admin-card" style="flex:1; overflow-y:auto;">
-            <table>
-                <thead><tr><th>姓名</th><th>連線</th><th>狀態</th></tr></thead>
-                <tbody id="player-list-body"></tbody>
-            </table>
-        </div>
-        <button onclick="location.reload()" style="background:none; border:1px solid #888; font-size:0.7rem;">登出/返回玩家</button>
+        <button onclick="location.reload()" style="background:none; border:1px solid white;">登出/回首頁</button>
     </div>
 
-    <div id="lucky-modal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); display:none; align-items:center; justify-content:center; z-index:99;">
-        <div style="background:white; padding:20px; border-radius:15px; width:80%; color:#333;">
-            <h3>🌟 天選之人！</h3>
-            <p>請輸入 1-25 號：</p>
-            <input type="number" id="lucky-num-input" min="1" max="25">
-            <button onclick="submitLuckyChoice()" style="width:100%;">送出號碼</button>
+    <div id="lucky-modal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); display:none; align-items:center; justify-content:center; z-index:99; backdrop-filter: blur(5px);">
+        <div style="background:white; padding:25px; border-radius:15px; width:80%; color:#333; text-align:center;">
+            <h2 style="color:var(--primary); margin-top:0;">🌟 你被抽中了！</h2>
+            <p>請決定下一個開獎號碼 (1-25)：</p>
+            <input type="number" id="lucky-num-input" min="1" max="25" style="font-size:1.5rem; width:100px;">
+            <button onclick="submitLuckyChoice()" style="width:100%; font-size:1.1rem; margin-top:10px;">確認送出</button>
         </div>
     </div>
 
     <script>
-        // --- 1. 配置 ---
         const firebaseConfig = {
             apiKey: "AIzaSyCLTGzCZUQm2ZzqfdBHk9D4xYpagaVtX7w",
             authDomain: "yearendbingo.firebaseapp.com",
@@ -119,27 +84,20 @@
             measurementId: "G-M6EVYSPNJ9"
         };
         firebase.initializeApp(firebaseConfig);
-        const auth = firebase.auth();
         const db = firebase.firestore();
+        const auth = firebase.auth();
 
         let currentUser = null;
-        let myData = { board: [], locked: false, name: "" };
+        let myData = { name: "", board: [], locked: false };
         let gameHistory = [];
-        let rollingInterval = null;
         let adminClickCount = 0;
+        let rollingInterval = null;
 
-        const winLines = [
-            [0,1,2,3,4], [5,6,7,8,9], [10,11,12,13,14], [15,16,17,18,19], [20,21,22,23,24],
-            [0,5,10,15,20], [1,6,11,16,21], [2,7,12,17,22], [3,8,13,18,23], [4,9,14,19,24],
-            [0,6,12,18,24], [4,8,12,16,20]
-        ];
-
-        // --- 2. 玩家邏輯 ---
         async function handleLogin() {
             const name = document.getElementById('username-input').value.trim();
-            if (!name) return alert("請輸入姓名");
-            
+            if(!name) return alert("請輸入真實姓名以利中獎核對");
             document.getElementById('btn-login').disabled = true;
+
             try {
                 const userCred = await auth.signInAnonymously();
                 currentUser = userCred.user;
@@ -148,178 +106,7 @@
                 const docRef = db.collection("players").doc(currentUser.uid);
                 const docSnap = await docRef.get();
 
-                if (docSnap.exists) {
-                    myData = { ...myData, ...docSnap.data() };
-                } else {
-                    myData.board = Array.from({length:25}, (_,i)=>i+1).sort(()=>Math.random()-0.5);
-                    await docRef.set({
-                        name: name, locked: false, maxConsecutive: 0,
-                        lastSeen: firebase.firestore.FieldValue.serverTimestamp()
-                    });
-                }
-                
-                document.getElementById('display-name').innerText = myData.name;
-                switchPage('page-game');
-                renderBoard();
-                startListeners();
-                setInterval(() => {
-                    db.collection("players").doc(currentUser.uid).update({
-                        lastSeen: firebase.firestore.FieldValue.serverTimestamp()
-                    }).catch(()=>{});
-                }, 20000);
-
-            } catch (e) {
-                alert("權限錯誤或網路問題: " + e.message);
-                document.getElementById('btn-login').disabled = false;
-            }
-        }
-
-        function renderBoard() {
-            const grid = document.getElementById('bingo-grid');
-            grid.innerHTML = "";
-            let winningIndices = new Set();
-            
-            winLines.forEach(line => {
-                if (line.every(idx => gameHistory.includes(myData.board[idx]))) {
-                    line.forEach(idx => winningIndices.add(idx));
-                }
-            });
-
-            myData.board.forEach((num, i) => {
-                const div = document.createElement('div');
-                div.className = 'cell' + (gameHistory.includes(num) ? ' selected' : '') + (winningIndices.has(i) ? ' bingo-line' : '');
-                div.innerText = num;
-                grid.appendChild(div);
-            });
-            document.getElementById('setup-controls').style.display = myData.locked ? 'none' : 'flex';
-        }
-
-        async function lockBoard() {
-            if(!confirm("鎖定後不可更改，確定嗎？")) return;
-            const bStr = myData.board.join(',');
-            try {
-                const snap = await db.collection("players").where("boardStr","==",bStr).get();
-                if(snap.size > 0) return alert("這組號碼有人選過囉，換一組試試！");
-                
-                await db.collection("players").doc(currentUser.uid).update({
-                    board: myData.board, boardStr: bStr, locked: true
-                });
-                myData.locked = true;
-                renderBoard();
-            } catch(e) { alert("鎖定失敗: " + e.message); }
-        }
-
-        function generateBoard() {
-            myData.board = Array.from({length:25}, (_,i)=>i+1).sort(()=>Math.random()-0.5);
-            renderBoard();
-        }
-
-        function startListeners() {
-            db.collection("game_state").doc("current_game").onSnapshot(doc => {
-                const data = doc.data();
-                if(!data) return;
-                gameHistory = data.history || [];
-                
-                if(data.isRolling) {
-                    if(!rollingInterval) rollingInterval = setInterval(()=> {
-                        document.getElementById('current-draw').innerText = Math.floor(Math.random()*25)+1;
-                    }, 80);
-                } else {
-                    clearInterval(rollingInterval);
-                    rollingInterval = null;
-                    document.getElementById('current-draw').innerText = gameHistory.length ? gameHistory[gameHistory.length-1] : "READY";
-                    renderBoard();
-                }
-
-                if(data.luckyUser === myData.name && myData.locked && !data.isRolling) {
-                    document.getElementById('lucky-modal').style.display = 'flex';
-                } else {
-                    document.getElementById('lucky-modal').style.display = 'none';
-                }
-            });
-        }
-
-        async function submitLuckyChoice() {
-            const num = parseInt(document.getElementById('lucky-num-input').value);
-            if(isNaN(num) || num<1 || num>25 || gameHistory.includes(num)) return alert("無效號碼或已開過");
-            await db.collection("pending_choices").doc(currentUser.uid).set({
-                playerName: myData.name, number: num, timestamp: firebase.firestore.FieldValue.serverTimestamp()
-            });
-            alert("已送出，等待開獎！");
-            document.getElementById('lucky-modal').style.display = 'none';
-        }
-
-        // --- 3. 管理端邏輯 ---
-        function handleAdminClick() {
-            adminClickCount++;
-            if(adminClickCount >= 5) {
-                const pw = prompt("請輸入管理密碼:");
-                if(pw === "2025admin") { // 這裡可以自訂密碼
-                    startAdmin();
-                }
-                adminClickCount = 0;
-            }
-        }
-
-        async function startAdmin() {
-            switchPage('page-admin');
-            // 監聽所有玩家
-            db.collection("players").onSnapshot(snap => {
-                const players = snap.docs.map(d => d.data());
-                const now = Date.now();
-                const online = players.filter(p => (now - (p.lastSeen?.toMillis?.()||0)) < 30000).length;
-                document.getElementById('stat-online').innerText = online;
-                
-                const tbody = document.getElementById('player-list-body');
-                tbody.innerHTML = players.map(p => `<tr><td>${p.name}</td><td>${p.maxConsecutive||0}</td><td>${p.locked?'🔒':'⏳'}</td></tr>`).join('');
-            });
-
-            // 監聽歷史
-            db.collection("game_state").doc("current_game").onSnapshot(doc => {
-                const h = doc.data()?.history || [];
-                document.getElementById('admin-history').innerHTML = h.map(n=>`<span class="history-tag">${n}</span>`).join('');
-            });
-
-            // 監聽待審核
-            db.collection("pending_choices").onSnapshot(snap => {
-                const list = snap.docs.map(d => ({id:d.id, ...d.data()}));
-                const area = document.getElementById('admin-pending-area');
-                area.style.display = list.length ? 'block' : 'none';
-                document.getElementById('pending-list').innerHTML = list.map(p => `
-                    <div style="margin-top:10px;">${p.playerName}: ${p.number} 
-                    <button onclick="approveLucky(${p.number}, '${p.id}')" style="padding:4px 8px;">確認</button></div>
-                `).join('');
-            });
-        }
-
-        async function drawNumber() {
-            const available = Array.from({length:25},(_,i)=>i+1).filter(n=>!gameHistory.includes(n));
-            const newNum = available[Math.floor(Math.random()*available.length)];
-            const ref = db.collection("game_state").doc("current_game");
-            await ref.update({ isRolling: true });
-            setTimeout(async () => {
-                await ref.update({ history: firebase.firestore.FieldValue.arrayUnion(newNum), isRolling: false, luckyUser: "" });
-            }, 3000);
-        }
-
-        async function approveLucky(num, uid) {
-            await db.collection("game_state").doc("current_game").update({
-                history: firebase.firestore.FieldValue.arrayUnion(num), luckyUser: ""
-            });
-            await db.collection("pending_choices").doc(uid).delete();
-        }
-
-        async function pickLuckyPlayer() {
-            const snap = await db.collection("players").where("locked","==",true).get();
-            const players = snap.docs.map(d => d.data());
-            const lucky = players[Math.floor(Math.random()*players.length)];
-            if(lucky) await db.collection("game_state").doc("current_game").update({ luckyUser: lucky.name });
-        }
-
-        function switchPage(id) {
-            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-            document.getElementById(id).classList.add('active');
-        }
-    </script>
-</body>
-</html>
+                if(docSnap.exists) {
+                    const d = docSnap.data();
+                    myData.board = d.board || [];
+                    myData.locked = d.locked || false;
