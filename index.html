@@ -34,7 +34,7 @@ body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neu
 .row{display:flex;gap:12px;align-items:center}
 .col{display:flex;flex-direction:column;gap:8px}
 .side-panel{background:var(--card);padding:12px;border-radius:12px;box-shadow:0 8px 20px rgba(0,0,0,0.06)}
-.layout{display:grid;grid-template-columns:1fr 320px;gap:12px}
+.layout{display:grid;grid-template-columns:1fr 360px;gap:12px}
 .admin-card{background:#34495e;color:#fff;padding:12px;border-radius:10px}
 .small-muted{color:var(--muted);font-size:0.9rem}
 .footer{margin-top:18px;text-align:center;color:var(--muted);font-size:0.9rem}
@@ -42,6 +42,7 @@ body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neu
 .player-row{display:flex;justify-content:space-between;align-items:center;padding:6px;border-bottom:1px dashed #eee}
 .status-dot{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:8px}
 .admin-bingo-list{max-height:160px;overflow:auto;padding:6px;color:#fff}
+#admin-controls .btn { width:100%; margin-bottom:8px; }
 @media(max-width:880px){.layout{grid-template-columns:1fr}}
 </style>
 </head>
@@ -50,7 +51,7 @@ body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neu
 
   <div class="header">
     <div class="brand">
-      <h1 onclick="handleAdminClick()">🧧 2025 尾牙賓果</h1>
+      <h1 id="brand-title">🧧 2025 尾牙賓果</h1>
       <div class="small-muted">活動前端</div>
     </div>
 
@@ -67,7 +68,7 @@ body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neu
     <div class="col" style="align-items:center">
       <input id="username-input" placeholder="請輸入暱稱（玩家）" style="width:100%;padding:10px;border-radius:8px;border:1px solid #ddd" />
       <button id="btn-login" class="btn" style="width:100%" onclick="handleLogin()">以匿名玩家登入</button>
-      <div class="small-muted">若要管理請點左上標題 5 次（3 秒內）並以管理帳號登入</div>
+      <!-- 管理入口提示已移除，隱藏觸發仍保留 -->
     </div>
   </div>
 
@@ -82,7 +83,7 @@ body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neu
         <div id="display-name" class="small-muted" style="margin-bottom:8px">未登入</div>
         <div id="bingo-grid" class="grid" aria-hidden="false"></div>
 
-        <div class="controls" id="setup-controls">
+        <div class="controls" id="player-controls">
           <button class="btn secondary" onclick="generateBoard()">🎲 換號碼</button>
           <button class="btn" id="btn-lock-real" onclick="lockBoard()">🔒 鎖定盤面</button>
         </div>
@@ -101,6 +102,13 @@ body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neu
             <div>已抽號碼</div>
             <div id="admin-history" style="color:#fff"></div>
           </div>
+        </div>
+
+        <!-- 管理專屬控制（預設隱藏） -->
+        <div id="admin-controls" style="display:none; margin-bottom:8px;">
+          <button id="btn-draw" class="btn" onclick="drawNumberWrapper()">🎲 抽號</button>
+          <button id="btn-pick-lucky" class="btn" style="background:#ffb300;color:#111" onclick="pickLuckyPlayerWrapper()">🌟 抽幸運兒</button>
+          <button id="btn-reset-game" class="btn secondary" style="background:#7f8c8d" onclick="resetGameWrapper()">🔁 遊戲重製</button>
         </div>
 
         <div class="admin-card" style="margin-bottom:8px">
@@ -189,6 +197,7 @@ let rollingInterval = null;
 let heartbeatTimer = null;
 let adminClickCount = 0;
 let adminClickTimeout = null;
+let listenersStarted = false;
 
 /* 初始化版次顯示 */
 document.getElementById('version-badge').innerText = '版次: ' + APP_VERSION;
@@ -266,17 +275,17 @@ async function handleLogin() {
 function switchPageToGame() {
   document.getElementById('page-login').style.display = 'none';
   document.getElementById('display-name').innerText = myData.name || '玩家';
-  document.getElementById('setup-controls').style.display = myData.locked ? 'none' : 'flex';
+  document.getElementById('player-controls').style.display = myData.locked ? 'none' : 'flex';
 }
 function switchPageToLogin() {
   document.getElementById('page-login').style.display = 'block';
   document.getElementById('admin-badge').style.display = 'none';
+  document.getElementById('admin-controls').style.display = 'none';
 }
 
 /* =========================
    監聽器與即時處理（包含 players 與 game_state）
    ========================= */
-let listenersStarted = false;
 function startListeners() {
   if(listenersStarted) return;
   listenersStarted = true;
@@ -388,7 +397,7 @@ function renderBoard() {
     div.innerText = num;
     grid.appendChild(div);
   });
-  document.getElementById('setup-controls').style.display = myData.locked ? 'none' : 'flex';
+  document.getElementById('player-controls').style.display = myData.locked ? 'none' : 'flex';
   document.getElementById('status-text').innerText = myData.locked ? '盤面已鎖定，祝中獎！' : '請先鎖定號碼';
 }
 
@@ -643,6 +652,32 @@ async function notifyBingoIfNeeded(uid, name, boardStr, maxConsecutive) {
 }
 
 /* =========================
+   遊戲重製（管理者專用）
+   ========================= */
+async function resetGame() {
+  if(!confirm('確定要重製遊戲？此動作會清空開獎紀錄、pending、bingo events 等')) return;
+  const gameRef = db.collection('game_state').doc('current_game');
+  const batch = db.batch();
+  batch.set(gameRef, { history: [], isRolling: false, luckyUser: "", updatedAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
+
+  // 注意：批次刪除大量文件可能超過限制，這裡示範簡單做法
+  try {
+    const pendingSnap = await db.collection('pending_choices').get();
+    pendingSnap.forEach(d => batch.delete(d.ref));
+    const bingoSnap = await db.collection('bingo_events').get();
+    bingoSnap.forEach(d => batch.delete(d.ref));
+    const auditRef = db.collection('audit_logs').doc();
+    batch.set(auditRef, { action: 'reset_game', detail: { by: currentUser ? currentUser.uid : 'unknown' }, timestamp: firebase.firestore.FieldValue.serverTimestamp() });
+
+    await batch.commit();
+    alert('遊戲已重製');
+  } catch(e) {
+    console.error('resetGame error', e);
+    alert('重製失敗: ' + (e.message || e));
+  }
+}
+
+/* =========================
    管理者登入（Email/Password）與 UID 白名單檢查
    ========================= */
 function handleAdminClick() {
@@ -689,17 +724,37 @@ async function adminSignIn() {
 }
 function startAdminAfterAuth(user) {
   document.getElementById('admin-badge').style.display = ALLOWED_ADMIN_UIDS.includes(user.uid) ? 'inline-block' : 'none';
-  // 進入管理頁（管理頁 UI 已在右側）
-  // 確保 listeners 已啟動
+  if(ALLOWED_ADMIN_UIDS.includes(user.uid)) {
+    document.getElementById('admin-controls').style.display = 'block';
+    // 隱藏玩家控制以避免混淆（管理者不應以管理視窗操作玩家盤面）
+    document.getElementById('player-controls').style.display = 'none';
+  } else {
+    document.getElementById('admin-controls').style.display = 'none';
+  }
   startListeners();
-  // show admin controls visually
   alert('管理者登入成功');
 }
 async function adminSignOut() {
   try { await auth.signOut(); } catch(e){ console.warn(e); }
   document.getElementById('admin-badge').style.display = 'none';
+  document.getElementById('admin-controls').style.display = 'none';
+  document.getElementById('player-controls').style.display = 'flex';
   switchPageToLogin();
 }
+
+/* =========================
+   權限包裝器（前端保護）
+   ========================= */
+function requireAdminOrAlert(actionFn) {
+  if(!currentUser || !ALLOWED_ADMIN_UIDS.includes(currentUser.uid)) {
+    alert('此功能僅限管理者使用');
+    return;
+  }
+  return actionFn();
+}
+function drawNumberWrapper(){ return requireAdminOrAlert(drawNumber); }
+function pickLuckyPlayerWrapper(){ return requireAdminOrAlert(pickLuckyPlayer); }
+function resetGameWrapper(){ return requireAdminOrAlert(resetGame); }
 
 /* =========================
    工具函式
@@ -731,9 +786,20 @@ auth.onAuthStateChanged(async user => {
         db.collection("players").doc(currentUser.uid).update({ lastSeen: firebase.firestore.FieldValue.serverTimestamp() }).catch(()=>{});
       }
     }, 15000);
+    // 顯示玩家控制
+    document.getElementById('player-controls').style.display = myData.locked ? 'none' : 'flex';
+    document.getElementById('admin-controls').style.display = 'none';
+    document.getElementById('admin-badge').style.display = 'none';
   } else {
     // 非匿名（管理者）登入時，不要自動建立或修改 players/{uid}
     document.getElementById('admin-badge').style.display = ALLOWED_ADMIN_UIDS.includes(user.uid) ? 'inline-block' : 'none';
+    if(ALLOWED_ADMIN_UIDS.includes(user.uid)) {
+      document.getElementById('admin-controls').style.display = 'block';
+      document.getElementById('player-controls').style.display = 'none';
+    } else {
+      document.getElementById('admin-controls').style.display = 'none';
+      document.getElementById('player-controls').style.display = 'flex';
+    }
     startListeners();
   }
 });
