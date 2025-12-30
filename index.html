@@ -1,458 +1,84 @@
+<!-- index.html v1.0 (活動版，單一管理者) -->
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="zh-TW">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>2025 尾牙大賓果 - 玩家端</title>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+  <meta charset="UTF-8">
+  <title>Bingo 活動</title>
+  <script type="module">
+    // Firebase 初始化
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getAuth, signInAnonymously, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+    import { getFirestore, doc, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-    <style>
-        :root { --primary: #d32f2f; --secondary: #ffc107; --bg: #f8f9fa; --success: #2e7d32; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; background: var(--bg); text-align: center; color: #333; -webkit-user-select: none; user-select: none; }
-        
-        /* 頁面切換控制 */
-        .page { display: none !important; padding: 20px; box-sizing: border-box; min-height: 100vh; }
-        .page.active { display: flex !important; flex-direction: column; align-items: center; justify-content: flex-start; }
+    const firebaseConfig = {
+      apiKey: "你的API_KEY",
+      authDomain: "你的專案.firebaseapp.com",
+      projectId: "你的專案ID",
+      storageBucket: "你的專案.appspot.com",
+      messagingSenderId: "你的SenderID",
+      appId: "你的AppID"
+    };
 
-        /* 登入頁 */
-        .login-container { margin-top: 20vh; width: 100%; max-width: 320px; }
-        h1 { color: var(--primary); font-size: 2.5rem; margin-bottom: 10px; text-shadow: 1px 1px 2px rgba(0,0,0,0.1); }
-        
-        /* 遊戲頁 */
-        .header-info { width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 10px; background: white; border-radius: 0 0 15px 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-bottom: 15px; }
-        .user-badge { font-weight: bold; color: #555; font-size: 0.9rem; }
-        
-        .big-number { font-size: 6rem; color: var(--primary); font-weight: 800; line-height: 1.2; min-height: 120px; text-shadow: 2px 2px 0px #fff, 4px 4px 0px rgba(0,0,0,0.1); margin: 10px 0; }
-        .status-bar { font-size: 1rem; color: var(--success); font-weight: bold; margin-bottom: 10px; min-height: 24px; }
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
 
-        /* 賓果盤 (響應式) */
-        .grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; width: 100%; max-width: 360px; background: #fff; padding: 10px; border-radius: 16px; box-shadow: 0 8px 20px rgba(0,0,0,0.08); }
-        .cell { aspect-ratio: 1; border: 1px solid #f0f0f0; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; font-weight: 700; border-radius: 8px; background: #fafafa; transition: all 0.2s; position: relative; }
-        .cell.selected { background: var(--secondary); color: #b71c1c; border-color: var(--secondary); transform: scale(0.96); box-shadow: inset 0 0 5px rgba(0,0,0,0.1); }
-        .cell.bingo-line { background: var(--primary) !important; color: white !important; animation: pulse 1s infinite; }
+    // 玩家登入 (匿名)
+    document.getElementById("playerLogin").addEventListener("click", async () => {
+      try {
+        const result = await signInAnonymously(auth);
+        const uid = result.user.uid;
+        console.log("玩家登入成功:", uid);
 
-        /* 操作區 */
-        .controls { margin-top: 20px; width: 100%; max-width: 360px; display: flex; gap: 10px; justify-content: center; }
-        button { flex: 1; padding: 14px; font-size: 1rem; border: none; border-radius: 12px; background: var(--primary); color: white; cursor: pointer; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.15); transition: transform 0.1s; }
-        button:active { transform: translateY(2px); box-shadow: 0 2px 3px rgba(0,0,0,0.1); }
-        button.secondary { background: #546e7a; }
-        button:disabled { background: #e0e0e0; color: #999; box-shadow: none; cursor: not-allowed; }
-        
-        input { padding: 14px; border-radius: 10px; border: 2px solid #eee; width: 80%; font-size: 1.1rem; text-align: center; margin-bottom: 15px; outline: none; transition: border 0.3s; }
-        input:focus { border-color: var(--secondary); }
+        // 建立玩家資料
+        await setDoc(doc(db, "players", uid), {
+          name: "玩家A",
+          board: Array.from({length:25}, (_,i)=>i+1),
+          boardStr: Array.from({length:25}, (_,i)=>i+1).join(","),
+          locked: false,
+          maxConsecutive: 0,
+          lastSeen: Date.now()
+        });
+        alert("玩家資料建立完成");
+      } catch (err) {
+        console.error("玩家登入失敗:", err);
+      }
+    });
 
-        /* 幸運兒彈窗 */
-        #lucky-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; display: none; align-items: center; justify-content: center; backdrop-filter: blur(5px); }
-        .modal-content { background: white; padding: 25px; border-radius: 20px; width: 85%; max-width: 320px; text-align: center; border: 4px solid var(--secondary); animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
-        
-        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
-        @keyframes popIn { from { transform: scale(0.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-    </style>
+    // 管理者登入 (Email+密碼)
+    document.getElementById("adminLogin").addEventListener("click", async () => {
+      try {
+        const email = document.getElementById("adminEmail").value;
+        const password = document.getElementById("adminPassword").value;
+        const result = await signInWithEmailAndPassword(auth, email, password);
+        const uid = result.user.uid;
+        console.log("管理者登入成功:", uid);
+
+        // 管理者操作範例：更新遊戲狀態
+        if (uid === "z6bA9TzIhPUqXBxSyoIlZGBETwy1") {
+          await setDoc(doc(db, "game_state", "current_game"), {
+            started: true,
+            history: []
+          });
+          alert("管理者已更新遊戲狀態");
+        } else {
+          alert("此帳號不是管理者 UID");
+        }
+      } catch (err) {
+        console.error("管理者登入失敗:", err);
+      }
+    });
+  </script>
 </head>
 <body>
+  <h1>Bingo 活動</h1>
 
-    <div id="page-login" class="page active">
-        <div class="login-container">
-            <h1>🧧 2025<br>尾牙賓果 001.1 </h1>
-            <p style="color: #666; margin-bottom: 30px;">請輸入您的暱稱加入戰局</p>
-            <input type="text" id="username-input" placeholder="暱稱 (例如: 周子瑜)">
-            <button onclick="handleLogin()">進入遊戲</button>
-            <div id="login-msg" style="color: red; margin-top: 10px; font-size: 0.9rem;"></div>
-        </div>
-    </div>
+  <h2>玩家登入</h2>
+  <button id="playerLogin">玩家登入 (匿名)</button>
 
-    <div id="page-game" class="page">
-        <div class="header-info">
-            <div class="user-badge">👤 <span id="display-name">載入中...</span></div>
-            <div style="font-size: 0.8rem; color: #888;">連線: <span id="conn-status" style="color:green">●</span></div>
-        </div>
-
-        <div class="big-number" id="current-draw">READY</div>
-        <div class="status-bar" id="status-text">請先鎖定號碼</div>
-        
-        <div class="grid" id="bingo-grid"></div>
-
-        <div class="controls" id="setup-controls">
-            <button class="secondary" onclick="generateBoard()">🎲 隨機換號</button>
-            <button onclick="lockBoard()" style="background: var(--success);">🔒 鎖定盤面</button>
-        </div>
-    </div>
-
-    <div id="lucky-modal">
-        <div class="modal-content">
-            <h2 style="color: #e65100; margin-top: 0;">🌟 天選之人！</h2>
-            <p>恭喜您被選中！<br>請輸入下一個開獎號碼 (1-25)</p>
-            <input type="number" id="lucky-num-input" min="1" max="25" inputmode="numeric">
-            <button onclick="submitLuckyChoice()" style="background: var(--secondary); color: #b71c1c;">送出號碼</button>
-            <p style="font-size: 0.8rem; color: #999; margin-top: 10px;">請勿輸入已開過的號碼</p>
-        </div>
-    </div>
-
-    <script>
-        // --- 1. Firebase Configuration (請替換為您的真實設定) ---
-        const firebaseConfig = {
-            apiKey: "AIzaSyCLTGzCZUQm2ZzqfdBHk9D4xYpagaVtX7w",
-            authDomain: "yearendbingo.firebaseapp.com",
-            projectId: "yearendbingo",
-            storageBucket: "yearendbingo.firebasestorage.app",
-            messagingSenderId: "563353011392",
-            appId: "1:563353011392:web:717976a176bc22a04d5925",
-            measurementId: "G-M6EVYSPNJ9"
-          };
-
-
-        // 初始化 Firebase
-        firebase.initializeApp(firebaseConfig);
-        const auth = firebase.auth();
-        const db = firebase.firestore();
-
-        // 狀態變數
-        let currentUser = null;
-        let myData = { board: [], locked: false, name: "" };
-        let gameHistory = [];
-        let rollingInterval = null;
-        
-        // 賓果連線索引 (0-24)
-        const winLines = [
-            [0,1,2,3,4], [5,6,7,8,9], [10,11,12,13,14], [15,16,17,18,19], [20,21,22,23,24], // 橫
-            [0,5,10,15,20], [1,6,11,16,21], [2,7,12,17,22], [3,8,13,18,23], [4,9,14,19,24], // 豎
-            [0,6,12,18,24], [4,8,12,16,20] // 斜
-        ];
-
-        // --- 2. 登入與初始化流程 ---
-        
-        // 檢查 LocalStorage 是否有舊的姓名
-        window.onload = () => {
-            const savedName = localStorage.getItem('bingo_username');
-            if (savedName) document.getElementById('username-input').value = savedName;
-        };
-
-        async function handleLogin() {
-            const name = document.getElementById('username-input').value.trim();
-            if (!name) return showLoginError("請輸入姓名");
-            
-            // 鎖定按鈕防止重複點擊
-            const btn = document.querySelector('#page-login button');
-            btn.disabled = true;
-            btn.innerText = "連線中...";
-
-            try {
-                // 1. 匿名登入取得 UID
-                const userCred = await auth.signInAnonymously();
-                currentUser = userCred.user;
-                
-                // 2. 儲存姓名到本地
-                localStorage.setItem('bingo_username', name);
-                myData.name = name;
-
-                // 3. 檢查 Firestore 是否已有該玩家資料 (斷線重連)
-                const docRef = db.collection("players").doc(currentUser.uid);
-                const docSnap = await docRef.get();
-
-                if (docSnap.exists) {
-                    // 老玩家：載入資料
-                    const data = docSnap.data();
-                    myData = { ...myData, ...data };
-                    console.log("恢復玩家資料:", myData);
-                } else {
-                    // 新玩家：初始化 (但不寫入 board，直到鎖定)
-                    myData.board = generateRandomBoard();
-                    myData.locked = false;
-                    // 先寫入基本資料以便管理端統計註冊人數
-                    await docRef.set({
-                        name: name,
-                        locked: false,
-                        maxConsecutive: 0,
-                        lastSeen: firebase.firestore.FieldValue.serverTimestamp()
-                    }, { merge: true });
-                }
-
-                // 4. 進入遊戲介面
-                enterGame();
-
-            } catch (error) {
-                console.error(error);
-                showLoginError("登入失敗: " + error.message);
-                btn.disabled = false;
-                btn.innerText = "進入遊戲";
-            }
-        }
-
-        function showLoginError(msg) {
-            document.getElementById('login-msg').innerText = msg;
-        }
-
-        function enterGame() {
-            document.getElementById('display-name').innerText = myData.name;
-            switchPage('page-game');
-            renderBoard();
-            updateUIState();
-            startListeners(); // 啟動監聽
-            startHeartbeat(); // 啟動心跳
-        }
-
-        // --- 3. 遊戲核心邏輯 ---
-
-        function generateRandomBoard() {
-            // 產生 1-25 亂數陣列
-            return Array.from({length: 25}, (_, i) => i + 1).sort(() => Math.random() - 0.5);
-        }
-
-        function generateBoard() {
-            if (myData.locked) return; // 已鎖定不能換
-            myData.board = generateRandomBoard();
-            renderBoard();
-        }
-
-        // 鎖定盤面 (包含 Transaction 唯一性檢查)
-        async function lockBoard() {
-            if (!confirm("確定要使用這組號碼嗎？\n鎖定後將無法更改！")) return;
-
-            const btn = document.getElementById('btn-lock');
-            btn.disabled = true;
-            btn.innerText = "檢查中...";
-
-            const boardStr = myData.board.join(',');
-            const playerRef = db.collection("players").doc(currentUser.uid);
-
-            try {
-                await db.runTransaction(async (transaction) => {
-                    // 1. 檢查全域是否有相同 boardStr
-                    // 注意：Firestore 沒有直接 unique constraint，需透過 query 檢查
-                    // 在高併發下 query 可能有延遲，但對尾牙規模通常足夠
-                    const duplicateCheck = await db.collection("players")
-                        .where("boardStr", "==", boardStr)
-                        .get();
-
-                    // 排除自己 (如果之前保存過但未鎖定)
-                    const others = duplicateCheck.docs.filter(d => d.id !== currentUser.uid);
-
-                    if (others.length > 0) {
-                        throw "DuplicateBoard";
-                    }
-
-                    // 2. 寫入資料並鎖定
-                    transaction.update(playerRef, {
-                        board: myData.board,
-                        boardStr: boardStr,
-                        locked: true,
-                        maxConsecutive: calculateMaxConsecutive(myData.board, gameHistory) // 初始分數
-                    });
-                });
-
-                // 成功
-                myData.locked = true;
-                updateUIState();
-                alert("盤面已鎖定！祝您中大獎！");
-
-            } catch (e) {
-                btn.disabled = false;
-                btn.innerText = "🔒 鎖定盤面";
-                if (e === "DuplicateBoard") {
-                    alert("太巧了！這組號碼剛好有人選走了。\n系統將為您重新產生一組，請再試一次。");
-                    generateBoard();
-                } else {
-                    console.error(e);
-                    alert("保存失敗，請檢查網路後重試。");
-                }
-            }
-        }
-
-        // --- 4. 監聽與即時互動 ---
-
-        function startListeners() {
-            // A. 監聽遊戲狀態 (開獎號碼、動畫狀態、幸運兒)
-            db.collection("game_state").doc("current_game")
-                .onSnapshot((doc) => {
-                    if (!doc.exists) return;
-                    const data = doc.data();
-                    
-                    // 1. 處理開獎歷史
-                    const newHistory = data.history || [];
-                    if (JSON.stringify(newHistory) !== JSON.stringify(gameHistory)) {
-                        gameHistory = newHistory;
-                        // 當號碼變動，若已鎖定，計算新分數並回傳
-                        if (myData.locked) {
-                            const newScore = calculateMaxConsecutive(myData.board, gameHistory);
-                            // 只有分數改變才寫入，節省寫入次數
-                            db.collection("players").doc(currentUser.uid).update({
-                                maxConsecutive: newScore
-                            }).catch(e => console.log("分數更新失敗", e));
-                        }
-                    }
-
-                    // 2. 處理跑號動畫
-                    if (data.isRolling) {
-                        startRollingAnim();
-                    } else {
-                        stopRollingAnim();
-                        // 顯示最後一號
-                        const lastNum = gameHistory.length > 0 ? gameHistory[gameHistory.length - 1] : "READY";
-                        document.getElementById('current-draw').innerText = lastNum;
-                        renderBoard(); // 重繪格子顏色
-                    }
-
-                    // 3. 處理幸運兒 (Check Name match + Locked status)
-                    // 注意：這裡使用 Name 比對是為了配合管理端顯示，若需嚴謹可用 UID
-                    if (data.luckyUser === myData.name && myData.locked && !data.isRolling) {
-                        showLuckyModal();
-                    } else {
-                        closeLuckyModal();
-                    }
-                });
-        }
-
-        // 最大連貫長度算法
-        function calculateMaxConsecutive(board, history) {
-            let maxScore = 0;
-            
-            winLines.forEach(line => {
-                let currentStreak = 0;
-                let lineMax = 0;
-                
-                line.forEach(index => {
-                    const num = board[index];
-                    if (history.includes(num)) {
-                        currentStreak++;
-                        if (currentStreak > lineMax) lineMax = currentStreak;
-                    } else {
-                        currentStreak = 0;
-                    }
-                });
-                
-                if (lineMax > maxScore) maxScore = lineMax;
-            });
-            
-            return maxScore; // 回傳 0-5
-        }
-
-        // 心跳機制 (Heartbeat)
-        function startHeartbeat() {
-            setInterval(() => {
-                if (currentUser) {
-                    db.collection("players").doc(currentUser.uid).update({
-                        lastSeen: firebase.firestore.FieldValue.serverTimestamp()
-                    }).catch(e => console.warn("Heartbeat fail", e));
-                }
-            }, 15000); // 每 15 秒
-        }
-
-        // --- 5. 幸運兒選號提交 ---
-
-        function showLuckyModal() {
-            document.getElementById('lucky-modal').style.display = 'flex';
-        }
-
-        function closeLuckyModal() {
-            document.getElementById('lucky-modal').style.display = 'none';
-        }
-
-        async function submitLuckyChoice() {
-            const input = document.getElementById('lucky-num-input');
-            const val = parseInt(input.value);
-
-            // 前端驗證
-            if (isNaN(val) || val < 1 || val > 25) {
-                return alert("請輸入 1-25 之間的數字");
-            }
-            if (gameHistory.includes(val)) {
-                return alert(`號碼 ${val} 已經開過了！請換一個。`);
-            }
-
-            // 寫入 Pending Choices
-            try {
-                await db.collection("pending_choices").doc(currentUser.uid).set({
-                    userId: currentUser.uid,
-                    playerName: myData.name,
-                    number: val,
-                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
-                });
-                alert("號碼已送出！請等待大螢幕開獎！");
-                closeLuckyModal(); // 暫時關閉，等待管理員處理
-            } catch (e) {
-                console.error(e);
-                alert("送出失敗，請重試");
-            }
-        }
-
-        // --- 6. UI 渲染與動畫 ---
-
-        function updateUIState() {
-            const controls = document.getElementById('setup-controls');
-            const statusText = document.getElementById('status-text');
-            
-            if (myData.locked) {
-                controls.style.display = 'none'; // 隱藏換號按鈕
-                statusText.innerText = "盤面已鎖定，祝您中獎！";
-            } else {
-                controls.style.display = 'flex';
-                statusText.innerText = "請調整號碼並點擊鎖定";
-            }
-        }
-
-        function renderBoard() {
-            const grid = document.getElementById('bingo-grid');
-            grid.innerHTML = "";
-            
-            // 檢查是否中獎 (視覺用)
-            let winCount = 0;
-            const winningIndices = new Set();
-            
-            if (myData.board.length === 25) {
-                winLines.forEach(line => {
-                    if (line.every(idx => gameHistory.includes(myData.board[idx]))) {
-                        winCount++;
-                        line.forEach(idx => winningIndices.add(idx));
-                    }
-                });
-            }
-
-            if (winCount > 0) {
-                document.getElementById('status-text').innerText = `🎉 賓果！達成 ${winCount} 條連線！`;
-            }
-
-            myData.board.forEach((num, index) => {
-                const cell = document.createElement('div');
-                cell.className = 'cell';
-                cell.innerText = num;
-                
-                // 標記已開出
-                if (gameHistory.includes(num)) {
-                    cell.classList.add('selected');
-                }
-                
-                // 標記連線
-                if (winningIndices.has(index)) {
-                    cell.classList.add('bingo-line');
-                }
-                
-                grid.appendChild(cell);
-            });
-        }
-
-        function startRollingAnim() {
-            if (rollingInterval) return;
-            const el = document.getElementById('current-draw');
-            el.style.color = "#999";
-            rollingInterval = setInterval(() => {
-                el.innerText = Math.floor(Math.random() * 25) + 1;
-            }, 80);
-        }
-
-        function stopRollingAnim() {
-            if (rollingInterval) {
-                clearInterval(rollingInterval);
-                rollingInterval = null;
-                document.getElementById('current-draw').style.color = "var(--primary)";
-            }
-        }
-
-        function switchPage(id) {
-            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-            document.getElementById(id).classList.add('active');
-        }
-    </script>
+  <h2>管理者登入</h2>
+  <input type="email" id="adminEmail" placeholder="管理者 Email">
+  <input type="password" id="adminPassword" placeholder="管理者密碼">
+  <button id="adminLogin">管理者登入</button>
 </body>
 </html>
