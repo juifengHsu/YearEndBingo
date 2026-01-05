@@ -1,13 +1,13 @@
 <!-- 2025 尾牙賓果系統 — 管理優化版
-     版次: v2.4
-     變更重點: 左側完全移除（僅顯示右側管理面板）；新增管理狀態顯示列；重置後自動為已登入玩家重建 players 文件；抽號前強制鎖定所有玩家盤面
+     版次: v2.5
+     變更重點: 三視圖路由（Login / Player / Admin）；修正重置與抽號鎖定流程；保留狀態列
 -->
 <!doctype html>
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>2025 尾牙賓果系統 v2.4</title>
+<title>2025 尾牙賓果系統 v2.5</title>
 
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
@@ -15,112 +15,148 @@
 
 <style>
 :root{
-  --primary:#b71c1c;
-  --accent:#ffb300;
-  --bg:#f4f6f8;
-  --card:#ffffff;
-  --muted:#6b7280;
-  --success:#2e7d32;
-  --danger:#c62828;
-  --shadow:0 6px 18px rgba(16,24,40,0.06);
+  --primary:#b71c1c; --accent:#ffb300; --bg:#f4f6f8; --card:#fff;
+  --muted:#6b7280; --success:#2e7d32; --danger:#c62828; --shadow:0 6px 18px rgba(16,24,40,0.06);
   --radius:12px;
 }
 *{box-sizing:border-box}
-body{margin:0;font-family:Inter, "Noto Sans TC", "Microsoft JhengHei", system-ui;background:linear-gradient(180deg,var(--bg),#ffffff);color:#111}
-.container{max-width:900px;margin:18px auto;padding:18px}
+body{margin:0;font-family:Inter, "Noto Sans TC", "Microsoft JhengHei", system-ui;background:var(--bg);color:#111}
+.container{max-width:980px;margin:18px auto;padding:18px}
 .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
-.title{font-size:1.25rem;color:var(--primary);cursor:pointer}
+.title{font-size:1.25rem;color:var(--primary)}
 .user-info{font-weight:600;color:var(--muted)}
-.card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px;margin-bottom:12px}
-.admin-main{display:flex;flex-direction:column;gap:12px}
+.card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;margin-bottom:12px}
+.hidden{display:none}
+.center{display:flex;align-items:center;justify-content:center}
+.btn{padding:10px;border-radius:10px;border:none;font-weight:700;cursor:pointer}
+.btn.primary{background:var(--primary);color:#fff}
+.btn.ghost{background:#f3f4f6;color:#111}
 .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .stat-box{background:linear-gradient(180deg,rgba(0,0,0,0.04),transparent);padding:10px;border-radius:10px;text-align:center}
 .stat-val{font-weight:800;color:var(--accent);display:block;font-size:1.1rem}
-.controls{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.btn{padding:10px;border-radius:10px;border:none;font-weight:700;cursor:pointer}
-.btn.primary{background:var(--primary);color:#fff}
-.btn.warn{background:var(--danger);color:#fff}
-.btn.ghost{background:#f3f4f6;color:#111}
-.small{font-size:0.85rem;color:var(--muted)}
 .pending-list{max-height:220px;overflow:auto;padding:8px;border-radius:8px;background:#fff}
 .status-log{max-height:160px;overflow:auto;padding:10px;border-radius:8px;background:#0f172a;color:#fff;font-size:0.9rem}
 .status-item{padding:6px;border-bottom:1px solid rgba(255,255,255,0.06)}
 .status-success{color:#b7f5c6}
 .status-fail{color:#ffd1d1}
-.center{display:flex;align-items:center;justify-content:center}
-.hidden{display:none}
+.grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;max-width:420px;margin:10px auto}
+.cell{aspect-ratio:1;display:flex;align-items:center;justify-content:center;background:#fbfdff;border-radius:10px;border:1px solid #eef2f7;font-weight:700}
+.cell.selected{background:#fff7e6;color:#b25600}
+.cell.bingo-line{background:var(--success);color:#fff;animation:pulse 900ms infinite}
+@keyframes pulse{0%{transform:scale(1)}50%{transform:scale(1.03)}100%{transform:scale(1)}}
+.small{font-size:0.85rem;color:var(--muted)}
 </style>
 </head>
 <body>
 <div class="container">
   <div class="header">
-    <div class="title">🧧 2025 賓果系統 管理面板 v2.4</div>
+    <div class="title">🧧 2025 賓果系統 v2.5</div>
     <div id="user-info" class="user-info">未登入</div>
   </div>
 
-  <div class="admin-main">
-    <div class="card">
-      <div class="stat-grid">
-        <div class="stat-box"><span id="count-online" class="stat-val">0</span><span class="small">在線</span></div>
-        <div class="stat-box"><span id="count-total" class="stat-val">0</span><span class="small">總人數</span></div>
+  <!-- LOGIN 視圖 -->
+  <div id="view-login" class="card">
+    <h3>管理 / 玩家 登入</h3>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <div style="flex:1;min-width:220px">
+        <input id="player-name" type="text" placeholder="玩家：輸入姓名（匿名登入）" style="width:100%;padding:10px;border-radius:8px;border:1px solid #e6e9ee" />
+        <div style="height:8px"></div>
+        <button class="btn primary" style="width:100%" onclick="doPlayerLogin()">匿名進場（玩家）</button>
       </div>
-
-      <div style="margin-top:10px" class="small">最大相鄰連號分佈</div>
-      <div style="display:flex;gap:8px;margin-top:8px">
-        <div class="stat-box" style="flex:1"><span id="cnt-5" class="stat-val">0</span><span class="small">5+</span></div>
-        <div class="stat-box" style="flex:1"><span id="cnt-4" class="stat-val">0</span><span class="small">4</span></div>
-        <div class="stat-box" style="flex:1"><span id="cnt-3" class="stat-val">0</span><span class="small">3</span></div>
-        <div class="stat-box" style="flex:1"><span id="cnt-2" class="stat-val">0</span><span class="small">2</span></div>
+      <div style="flex:1;min-width:220px">
+        <input id="admin-email" type="email" placeholder="管理員 Email" style="width:100%;padding:10px;border-radius:8px;border:1px solid #e6e9ee" />
+        <div style="height:8px"></div>
+        <input id="admin-pwd" type="password" placeholder="管理員密碼" style="width:100%;padding:10px;border-radius:8px;border:1px solid #e6e9ee" />
+        <div style="height:8px"></div>
+        <button class="btn ghost" style="width:100%" onclick="doAdminLogin()">管理員登入</button>
       </div>
-
-      <div style="margin-top:12px;text-align:center;background:linear-gradient(90deg,#fff8e1,#fff);padding:10px;border-radius:10px">
-        <div class="small">同步開獎號</div>
-        <div id="admin-sync-num" style="font-size:2rem;font-weight:800;color:var(--accent)">--</div>
-      </div>
-
-      <div class="controls" style="margin-top:12px">
-        <button id="btn-draw" class="btn primary" onclick="drawNewNumber()">🎲 抽號</button>
-        <button id="btn-pick" class="btn" style="background:var(--accent);font-weight:800" onclick="pickLucky()">🌟 幸運兒</button>
-      </div>
-    </div>
-
-    <div class="card">
-      <div style="font-weight:700;margin-bottom:8px">📢 即時賓果名單</div>
-      <div id="bingo-alerts" class="pending-list"><div style="color:#9aa0a6">尚無賓果事件...</div></div>
-    </div>
-
-    <div class="card">
-      <div style="font-weight:700;margin-bottom:8px">待核選號 (<span id="pending-count">0</span>)</div>
-      <div id="pending-choices" class="pending-list"></div>
-    </div>
-
-    <div class="card">
-      <div style="display:flex;gap:8px;margin-bottom:8px">
-        <button class="btn warn" onclick="handleReset()">⚠️ 重置遊戲</button>
-        <button class="btn ghost" onclick="location.reload()">退出並重整</button>
-      </div>
-
-      <div style="margin-top:12px;font-weight:700;margin-bottom:6px">系統狀態列</div>
-      <div id="status-log" class="status-log" aria-live="polite"></div>
     </div>
   </div>
-</div>
 
-<!-- 管理登入 Modal -->
-<div id="admin-modal" style="position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);z-index:999">
-  <div style="width:320px;background:#fff;padding:18px;border-radius:12px">
-    <h3 style="margin:0 0 10px 0">管理員登入</h3>
-    <input id="admin-email" type="email" placeholder="Email" />
-    <div style="height:8px"></div>
-    <input id="admin-pwd" type="password" placeholder="Password" />
-    <div style="height:12px"></div>
-    <button class="btn primary" style="width:100%" onclick="doAdminLogin()">登入</button>
-    <div style="height:8px"></div>
-    <button class="btn ghost" style="width:100%" onclick="document.getElementById('admin-modal').style.display='none'">取消</button>
+  <!-- PLAYER 視圖 -->
+  <div id="view-player" class="hidden">
+    <div class="card">
+      <div id="player-header" style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div style="font-weight:700" id="player-name-display"></div>
+          <div class="small">玩家頁面</div>
+        </div>
+        <div>
+          <button class="btn ghost" onclick="doSignOut()">登出</button>
+        </div>
+      </div>
+
+      <div style="margin-top:12px;text-align:center">
+        <div id="draw-display" style="font-size:3.6rem;font-weight:800;color:var(--primary);height:90px;line-height:90px">READY</div>
+        <div id="bingo-status" class="small" style="height:26px;margin-bottom:8px;color:var(--success);font-weight:700"></div>
+        <div id="bingo-grid" class="grid"></div>
+        <div id="setup-btns" style="margin-top:12px;display:flex;gap:10px;justify-content:center">
+          <button id="btn-reroll" class="btn ghost" onclick="reRollBoard()">🎲 換號碼</button>
+          <button id="btn-lock" class="btn primary" onclick="confirmBoard()">🔒 鎖定盤面</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADMIN 視圖（主畫面） -->
+  <div id="view-admin" class="hidden">
+    <div class="card admin-main">
+      <div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div style="font-weight:700">管理者控制台</div>
+            <div class="small">管理頁面</div>
+          </div>
+          <div>
+            <button class="btn ghost" onclick="doSignOut()">登出</button>
+          </div>
+        </div>
+
+        <div style="margin-top:12px" class="stat-grid">
+          <div class="stat-box"><span id="count-online" class="stat-val">0</span><span class="small">在線</span></div>
+          <div class="stat-box"><span id="count-total" class="stat-val">0</span><span class="small">總人數</span></div>
+        </div>
+
+        <div style="margin-top:10px" class="small">最大相鄰連號分佈</div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <div class="stat-box" style="flex:1"><span id="cnt-5" class="stat-val">0</span><span class="small">5+</span></div>
+          <div class="stat-box" style="flex:1"><span id="cnt-4" class="stat-val">0</span><span class="small">4</span></div>
+          <div class="stat-box" style="flex:1"><span id="cnt-3" class="stat-val">0</span><span class="small">3</span></div>
+          <div class="stat-box" style="flex:1"><span id="cnt-2" class="stat-val">0</span><span class="small">2</span></div>
+        </div>
+
+        <div style="margin-top:12px;text-align:center;background:linear-gradient(90deg,#fff8e1,#fff);padding:10px;border-radius:10px">
+          <div class="small">同步開獎號</div>
+          <div id="admin-sync-num" style="font-size:2rem;font-weight:800;color:var(--accent)">--</div>
+        </div>
+
+        <div style="margin-top:12px;display:flex;gap:8px">
+          <button id="btn-draw" class="btn primary" onclick="drawNewNumber()">🎲 抽號</button>
+          <button id="btn-pick" class="btn" style="background:var(--accent);font-weight:800" onclick="pickLucky()">🌟 幸運兒</button>
+          <button class="btn ghost" onclick="handleReset()">⚠️ 重置</button>
+        </div>
+      </div>
+
+      <div style="margin-top:12px" class="card">
+        <div style="font-weight:700;margin-bottom:8px">📢 即時賓果名單</div>
+        <div id="bingo-alerts" class="pending-list"><div style="color:#9aa0a6">尚無賓果事件...</div></div>
+      </div>
+
+      <div class="card">
+        <div style="font-weight:700;margin-bottom:8px">待核選號 (<span id="pending-count">0</span>)</div>
+        <div id="pending-choices" class="pending-list"></div>
+      </div>
+
+      <div class="card">
+        <div style="font-weight:700;margin-bottom:8px">系統狀態列</div>
+        <div id="status-log" class="status-log" aria-live="polite"></div>
+      </div>
+    </div>
   </div>
 </div>
 
 <script>
+/* Firebase config (保留) */
 const firebaseConfig = {
   apiKey: "AIzaSyCLTGzCZUQm2ZzqfdBHk9D4xYpagaVtX7w",
   authDomain: "yearendbingo.firebaseapp.com",
@@ -135,12 +171,14 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 const auth = firebase.auth();
 
+/* 全域狀態 */
 let currentUser = null;
 let myData = { name:"", board:[], locked:false, boardStr:"", version:0 };
 let gameHistory = [];
 let allPlayersCache = [];
 let rollingTimer = null;
 
+/* 行列定義 */
 const lines = [
   [0,1,2,3,4],[5,6,7,8,9],[10,11,12,13,14],[15,16,17,18,19],[20,21,22,23,24],
   [0,5,10,15,20],[1,6,11,16,21],[2,7,12,17,22],[3,8,13,18,23],[4,9,14,19,24],
@@ -156,51 +194,76 @@ function logStatus(message, ok = true){
   div.className = 'status-item ' + (ok ? 'status-success' : 'status-fail');
   div.innerText = `[${time}] ${message}`;
   el.prepend(div);
-  // 同步寫入 audit_logs（開發用；上線請改由 Cloud Function 寫入）
-  try {
-    db.collection("audit_logs").add({ action: message, detail: { ok }, timestamp: firebase.firestore.FieldValue.serverTimestamp() });
-  } catch(e){}
+  try { db.collection("audit_logs").add({ action: message, detail:{ok}, timestamp: firebase.firestore.FieldValue.serverTimestamp() }); } catch(e){}
 }
 
-/* Auth state handler */
-auth.onAuthStateChanged(user => {
+/* 顯示路由 */
+function showView(name){
+  document.getElementById('view-login').classList.add('hidden');
+  document.getElementById('view-player').classList.add('hidden');
+  document.getElementById('view-admin').classList.add('hidden');
+  if(name === 'login') document.getElementById('view-login').classList.remove('hidden');
+  if(name === 'player') document.getElementById('view-player').classList.remove('hidden');
+  if(name === 'admin') document.getElementById('view-admin').classList.remove('hidden');
+}
+
+/* Auth 監聽：決定路由 */
+auth.onAuthStateChanged(async user => {
   currentUser = user;
-  if(user){
-    document.getElementById('user-info').innerText = (user.email ? user.email : (user.uid === ALLOWED_UID ? "管理者模式" : "已登入"));
-    startApp();
-  } else {
-    document.getElementById('user-info').innerText = "未登入";
+  if(!user){ document.getElementById('user-info').innerText = "未登入"; showView('login'); return; }
+  // 若為管理員 UID -> admin
+  if(user.uid === ALLOWED_UID){
+    document.getElementById('user-info').innerText = "管理者模式";
+    showView('admin');
+    startApp(); return;
   }
+  // 一般玩家：嘗試讀取 players/{uid}，若不存在則建立（匿名登入流程）
+  const snap = await db.collection("players").doc(user.uid).get();
+  if(snap.exists){
+    myData = snap.data();
+  } else {
+    // 若尚未建立，建立一個預設盤面（不鎖定）
+    const nameInput = document.getElementById('player-name')?.value?.trim() || ("玩家" + user.uid.slice(0,6));
+    const board = shuffleArray();
+    myData = { name: nameInput, board, boardStr: board.join(','), locked:false, maxConsecutive:0, lastSeen: firebase.firestore.FieldValue.serverTimestamp(), version:1 };
+    await db.collection("players").doc(user.uid).set(myData);
+  }
+  document.getElementById('user-info').innerText = myData.name || "已登入";
+  document.getElementById('player-name-display').innerText = myData.name || "玩家";
+  showView('player');
+  startApp();
 });
 
-function triggerAdmin(){
-  window.adminClicks = (window.adminClicks||0)+1;
-  if(window.adminClicks>=5){
-    document.getElementById('admin-modal').style.display='flex';
-    window.adminClicks=0;
-  }
+/* 登入 / 登出 */
+async function doPlayerLogin(){
+  const name = document.getElementById('player-name').value.trim();
+  if(!name) return alert("請輸入姓名");
+  try {
+    const cred = await auth.signInAnonymously();
+    currentUser = cred.user;
+    // players doc 會在 onAuthStateChanged 裡建立或讀取
+  } catch(e){ alert("匿名登入失敗"); }
 }
 
 async function doAdminLogin(){
   const email = document.getElementById('admin-email').value;
   const pwd = document.getElementById('admin-pwd').value;
-  try{
-    const cred = await auth.signInWithEmailAndPassword(email,pwd);
+  try {
+    const cred = await auth.signInWithEmailAndPassword(email, pwd);
     if(cred.user.uid === ALLOWED_UID){
-      document.getElementById('admin-modal').style.display='none';
-      document.getElementById('user-info').innerText = "管理者模式";
-      currentUser = cred.user;
       logStatus("管理員登入成功", true);
-      startApp();
     } else {
+      logStatus("管理員登入失敗：非管理員", false);
       alert("非管理員帳號");
-      logStatus("管理員登入失敗：非管理員帳號", false);
+      await auth.signOut();
     }
   } catch(e){
-    alert("登入失敗");
     logStatus("管理員登入失敗：" + e, false);
+    alert("登入失敗");
   }
 }
+
+function doSignOut(){ auth.signOut(); showView('login'); }
 
 /* 監聽器管理 */
 let gameStateUnsub = null;
@@ -218,17 +281,26 @@ function startApp(){
     const data = doc.data() || { history:[], isRolling:false, luckyUser:"", status:"waiting" };
     gameHistory = data.history || [];
     const last = gameHistory.length ? gameHistory[gameHistory.length-1] : "READY";
+    const drawEl = document.getElementById('draw-display');
     const syncEl = document.getElementById('admin-sync-num');
+    if(drawEl) drawEl.innerText = last;
     if(syncEl) syncEl.innerText = last;
-
     if(data.isRolling){
       if(!rollingTimer) rollingTimer = setInterval(()=> {
         const rand = Math.floor(Math.random()*25)+1;
+        if(drawEl) drawEl.innerText = rand;
         if(syncEl) syncEl.innerText = rand;
       }, 80);
     } else {
       if(rollingTimer){ clearInterval(rollingTimer); rollingTimer=null; }
+      if(myData && myData.board && myData.board.length) renderGrid();
       if(currentUser && currentUser.uid === ALLOWED_UID) updateConnectedStats();
+    }
+    if(data.luckyUser && data.luckyUser === myData.name && !data.isRolling && currentUser && currentUser.uid !== ALLOWED_UID){
+      const num = prompt("你是幸運兒！請輸入 1-25 開獎號碼：");
+      if(num){
+        db.collection("pending_choices").doc(currentUser.uid).set({ number: parseInt(num), playerName: myData.name, timestamp: firebase.firestore.FieldValue.serverTimestamp() });
+      }
     }
   });
 
@@ -240,6 +312,12 @@ function startApp(){
     const online = list.filter(p => p.lastSeen && (now - (p.lastSeen.toMillis ? p.lastSeen.toMillis() : new Date(p.lastSeen).getTime())) < 30000).length;
     document.getElementById('count-online').innerText = online;
     if(currentUser && currentUser.uid === ALLOWED_UID) updateConnectedStats();
+    // 若玩家頁面但 myData 缺板，嘗試補載
+    if(currentUser && currentUser.uid !== ALLOWED_UID && (!myData || !myData.board || !myData.board.length)){
+      db.collection("players").doc(currentUser.uid).get().then(snap=>{
+        if(snap.exists){ myData = snap.data(); document.getElementById('player-name-display').innerText = myData.name; renderGrid(); }
+      }).catch(()=>{});
+    }
   });
 
   if(currentUser && currentUser.uid === ALLOWED_UID){
@@ -266,22 +344,76 @@ function startApp(){
     });
   }
 
-  // heartbeat for current user (if player)
-  if(currentUser && !currentUser.email){
+  // heartbeat for player
+  if(currentUser && currentUser.uid !== ALLOWED_UID){
     db.collection("players").doc(currentUser.uid).update({ lastSeen: firebase.firestore.FieldValue.serverTimestamp() }).catch(()=>{});
   }
   if(window.heartbeatInterval) clearInterval(window.heartbeatInterval);
   window.heartbeatInterval = setInterval(()=> {
-    if(currentUser && !currentUser.email){
+    if(currentUser && currentUser.uid !== ALLOWED_UID){
       db.collection("players").doc(currentUser.uid).update({ lastSeen: firebase.firestore.FieldValue.serverTimestamp() }).catch(()=>{});
     }
   },15000);
 }
 
-/* 管理操作：強制鎖定所有玩家（分頁處理以避免 batch 限制） */
+/* PLAYER UI: render board */
+function renderGrid(){
+  const grid = document.getElementById('bingo-grid');
+  if(!grid) return;
+  grid.innerHTML = '';
+  const winIdx = new Set();
+  let winCount = 0;
+  lines.forEach(line => {
+    if(line.every(idx => gameHistory.includes(myData.board[idx]))){
+      winCount++;
+      line.forEach(i=>winIdx.add(i));
+    }
+  });
+  myData.board.forEach((num,i)=>{
+    const div = document.createElement('div');
+    div.className = 'cell';
+    if(gameHistory.includes(num)) div.classList.add('selected');
+    if(winIdx.has(i)) div.classList.add('bingo-line');
+    div.innerText = num;
+    grid.appendChild(div);
+  });
+  if(winCount>0 && myData.locked){
+    document.getElementById('bingo-status').innerText = `已連成 ${winCount} 條線！`;
+    db.collection("bingo_events").doc(currentUser.uid).set({ name: myData.name, timestamp: firebase.firestore.FieldValue.serverTimestamp() });
+  } else {
+    document.getElementById('bingo-status').innerText = '';
+  }
+  document.getElementById('setup-btns').style.display = myData.locked ? 'none' : 'flex';
+}
+
+/* PLAYER actions */
+function shuffleArray(){ return Array.from({length:25},(_,i)=>i+1).sort(()=>Math.random()-0.5); }
+function reRollBoard(){ myData.board = shuffleArray(); myData.boardStr = myData.board.join(','); renderGrid(); }
+
+async function confirmBoard(){
+  if(!confirm("鎖定後不能更換號碼，確定嗎？")) return;
+  const boardStr = myData.board.join(',');
+  const playerRef = db.collection("players").doc(currentUser.uid);
+  const idxRef = db.collection("board_index").doc(boardStr);
+  try{
+    await db.runTransaction(async tx=>{
+      const idxSnap = await tx.get(idxRef);
+      if(idxSnap.exists) throw "盤面重複";
+      tx.set(idxRef, { uid: currentUser.uid, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+      tx.set(playerRef, { ...myData, locked:true, board: myData.board, boardStr: boardStr, version: (myData.version||1)+1 }, { merge: true });
+    });
+    myData.locked = true;
+    renderGrid();
+    alert("鎖定成功");
+  } catch(e){
+    alert("鎖定失敗：" + e);
+  }
+}
+
+/* 管理：分頁批次強制鎖定所有玩家 */
 async function forceLockAllPlayers(){
   try {
-    const pageSize = 400; // safe batch size
+    const pageSize = 400;
     let lastDoc = null;
     let totalLocked = 0;
     while(true){
@@ -290,9 +422,7 @@ async function forceLockAllPlayers(){
       const snap = await q.get();
       if(snap.empty) break;
       const batch = db.batch();
-      snap.docs.forEach(doc => {
-        batch.update(doc.ref, { locked: true, version: (doc.data().version || 1) + 1 });
-      });
+      snap.docs.forEach(doc => batch.update(doc.ref, { locked: true, version: (doc.data().version || 1) + 1 }));
       await batch.commit();
       totalLocked += snap.size;
       lastDoc = snap.docs[snap.docs.length - 1];
@@ -301,32 +431,24 @@ async function forceLockAllPlayers(){
     logStatus(`強制鎖定完成：共鎖定 ${totalLocked} 位玩家`, true);
     return true;
   } catch(e){
-    console.error("forceLockAllPlayers error", e);
     logStatus("強制鎖定失敗：" + e, false);
     return false;
   }
 }
 
-/* 抽號：先強制鎖定所有玩家，鎖定成功後執行抽號 transaction */
+/* 管理：抽號（先鎖定） */
 async function drawNewNumber(){
   document.getElementById('btn-draw').disabled = true;
   logStatus("開始抽號：嘗試強制鎖定所有玩家...", true);
   const locked = await forceLockAllPlayers();
-  if(!locked){
-    document.getElementById('btn-draw').disabled = false;
-    return;
-  }
+  if(!locked){ document.getElementById('btn-draw').disabled = false; return; }
   logStatus("所有玩家已鎖定，開始抽號動畫", true);
 
   const ref = db.collection("game_state").doc("current_game");
   const snap = await ref.get();
   const history = snap.data()?.history || [];
   const pool = Array.from({length:25},(_,i)=>i+1).filter(n=>!history.includes(n));
-  if(!pool.length){
-    logStatus("抽號取消：號碼已抽完", false);
-    document.getElementById('btn-draw').disabled = false;
-    return alert("已抽完");
-  }
+  if(!pool.length){ logStatus("抽號取消：號碼已抽完", false); document.getElementById('btn-draw').disabled = false; return alert("已抽完"); }
   await ref.update({ isRolling:true });
   setTimeout(async ()=>{
     const pick = pool[Math.floor(Math.random()*pool.length)];
@@ -338,7 +460,6 @@ async function drawNewNumber(){
       });
       logStatus(`抽號成功：本次開出 ${pick}`, true);
     } catch(e){
-      console.error("draw transaction failed", e);
       await ref.update({ isRolling:false });
       logStatus("抽號失敗：" + e, false);
       alert("抽號失敗，請重試");
@@ -348,13 +469,12 @@ async function drawNewNumber(){
   }, 1800);
 }
 
-/* 重置：刪除集合並為當前已登入玩家自動建立 players 文件（若為玩家） */
+/* 管理：重置（刪除集合並為當前玩家建立盤面） */
 async function handleReset(){
   if(!confirm("確定要重置所有資料嗎？此動作不可復原")) return;
   try {
     const collections = ["players","pending_choices","bingo_events","board_index"];
     for(const coll of collections){
-      // 分頁刪除簡單實作（一次抓取並刪除，若資料量大請改為分頁）
       const snap = await db.collection(coll).get();
       const batch = db.batch();
       snap.forEach(d=>batch.delete(d.ref));
@@ -363,37 +483,35 @@ async function handleReset(){
     await db.collection("game_state").doc("current_game").set({ history:[], isRolling:false, luckyUser:"", status:"waiting" });
     logStatus("重置完成：game_state 與集合已清空", true);
 
-    // 前端狀態清理
     myData = { name:"", board:[], locked:false, boardStr:"", version:0 };
     gameHistory = [];
     allPlayersCache = [];
     if(rollingTimer){ clearInterval(rollingTimer); rollingTimer = null; }
     startApp();
 
-    // 若當前分頁為已登入玩家（非管理者），自動建立新 players 文件
     if(currentUser && currentUser.uid !== ALLOWED_UID){
       const newBoard = shuffleArray();
       const newBoardStr = newBoard.join(',');
-      myData = {
-        name: myData.name || ("玩家" + currentUser.uid.slice(0,6)),
-        board: newBoard,
-        boardStr: newBoardStr,
-        locked: false,
-        maxConsecutive: 0,
-        lastSeen: firebase.firestore.FieldValue.serverTimestamp(),
-        version: 1
-      };
+      myData = { name: myData.name || ("玩家" + currentUser.uid.slice(0,6)), board: newBoard, boardStr: newBoardStr, locked:false, maxConsecutive:0, lastSeen: firebase.firestore.FieldValue.serverTimestamp(), version:1 };
       await db.collection("players").doc(currentUser.uid).set(myData);
       logStatus("為當前玩家自動建立新盤面並恢復換號/鎖定功能", true);
+      // 顯示 player 視圖
+      document.getElementById('player-name-display').innerText = myData.name;
+      showView('player');
+      renderGrid();
+    } else if(currentUser && currentUser.uid === ALLOWED_UID){
+      showView('admin');
+      logStatus("管理者保留登入", true);
+    } else {
+      showView('login');
     }
   } catch(e){
-    console.error(e);
     logStatus("重置失敗：" + e, false);
     alert("重置失敗：" + e);
   }
 }
 
-/* 確認幸運號碼（管理端） */
+/* 管理：確認幸運號 */
 async function confirmLucky(docId, num){
   const ref = db.collection("game_state").doc("current_game");
   try{
@@ -410,15 +528,13 @@ async function confirmLucky(docId, num){
   }
 }
 
-/* 抽幸運兒（管理端） */
+/* 管理：抽幸運兒 */
 async function pickLucky(){
   try {
     const snap = await db.collection("players").where("locked","==",true).get();
     if(snap.empty) { logStatus("抽幸運兒失敗：無鎖定玩家", false); return alert("尚無鎖定盤面"); }
     const players = snap.docs.map(d=>({uid:d.id,...d.data()}));
-    players.forEach(p=>{
-      p.maxConsecutive = p.maxConsecutive || calculateMaxConnected(p.board || [], gameHistory);
-    });
+    players.forEach(p=> p.maxConsecutive = p.maxConsecutive || calculateMaxConnected(p.board || [], gameHistory));
     players.sort((a,b)=> (a.maxConsecutive||0) - (b.maxConsecutive||0));
     const candidates = players.slice(0, Math.min(15, players.length));
     const lucky = candidates[Math.floor(Math.random()*candidates.length)];
@@ -431,9 +547,7 @@ async function pickLucky(){
   }
 }
 
-/* 工具函式 */
-function shuffleArray(){ return Array.from({length:25},(_,i)=>i+1).sort(()=>Math.random()-0.5); }
-
+/* 工具：計算最大連通 */
 function calculateMaxConnected(board, history){
   const marked = new Set();
   board.forEach((num,idx)=>{ if(history.includes(num)) marked.add(idx); });
