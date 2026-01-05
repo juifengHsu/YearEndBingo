@@ -49,7 +49,7 @@
 
 <div class="container">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-        <h1 onclick="triggerAdmin()" style="margin:0; color:var(--primary); cursor:pointer;">🧧 2025 賓果系統</h1>
+        <h1 onclick="triggerAdmin()" style="margin:0; color:var(--primary); cursor:pointer;">🧧 2025 賓果系統 005</h1>
         <div id="user-info" style="font-weight:bold;"></div>
     </div>
 
@@ -213,7 +213,8 @@ function startApp() {
             renderGrid();
         }
 
-        if(data.luckyUser === myData.name && !data.isRolling) {
+        // 增加 data.luckyUser && ... 以確保幸運兒欄位有值
+        if(data.luckyUser && data.luckyUser === myData.name && !data.isRolling) {
             const num = prompt("你是幸運兒！請輸入 1-25 開獎號碼：");
             if(num) db.collection("pending_choices").add({ name:myData.name, num: parseInt(num) });
         }
