@@ -248,41 +248,77 @@ async function doAdminLogin(){
   }
 }
 
+auth.onAuthStateChanged(user => {
+  currentUser = user;
+  if(user){
+    // 若已登入，嘗試讀取 players/{uid}（若存在）
+    db.collection("players").doc(user.uid).get().then(snap=>{
+      if(snap.exists){
+        myData = snap.data();
+        document.getElementById('user-info') && (document.getElementById('user-info').innerText = myData.name || (user.email || "已登入"));
+        document.getElementById('login-form') && (document.getElementById('login-form').style.display = 'none');
+        document.getElementById('game-ui') && document.getElementById('game-ui').classList.remove('hidden');
+      } else {
+        // 未建立玩家資料：顯示登入表單（管理者例外）
+        if(user.uid === ALLOWED_UID){
+          document.getElementById('user-info') && (document.getElementById('user-info').innerText = "管理者模式");
+          document.getElementById('admin-sidebar') && document.getElementById('admin-sidebar').classList.remove('hidden');
+        } else {
+          document.getElementById('login-form') && (document.getElementById('login-form').style.display = 'block');
+        }
+      }
+    }).catch(()=>{});
+    // 啟動監聽（若尚未）
+    startApp();
+  } else {
+    // 未登入：顯示登入表單
+    document.getElementById('user-info') && (document.getElementById('user-info').innerText = "未登入");
+    document.getElementById('login-form') && (document.getElementById('login-form').style.display = 'block');
+    document.getElementById('game-ui') && document.getElementById('game-ui').classList.add('hidden');
+  }
+});
+
+     
 /* 啟動監聽 */
 function startApp(){
   // game_state 監聽
-  db.collection("game_state").doc("current_game").onSnapshot(doc => {
-    const data = doc.data() || { history:[], isRolling:false, luckyUser:"", status:"waiting" };
-    gameHistory = data.history || [];
-    // 處理 isRolling 動畫
-    if(data.isRolling){
-      if(!rollingTimer) rollingTimer = setInterval(()=> {
-        const rand = Math.floor(Math.random()*25)+1;
-        document.getElementById('draw-display').innerText = rand;
-        document.getElementById('admin-sync-num').innerText = rand;
-      }, 80);
-    } else {
-      if(rollingTimer){ clearInterval(rollingTimer); rollingTimer=null; }
-      const last = gameHistory.length ? gameHistory[gameHistory.length-1] : "READY";
-      document.getElementById('draw-display').innerText = last;
-      document.getElementById('admin-sync-num').innerText = last;
-      renderGrid();
-      if(currentUser && currentUser.uid === ALLOWED_UID) updateConnectedStats();
-    }
+       db.collection("game_state").doc("current_game").onSnapshot(doc => {
+       const data = doc.data() || { history:[], isRolling:false, luckyUser:"", status:"waiting" };
+       gameHistory = data.history || [];
+     
+       // **先更新所有客戶端可見的抽號顯示（不依賴 myData）**
+       const last = gameHistory.length ? gameHistory[gameHistory.length-1] : "READY";
+       document.getElementById('admin-sync-num') && (document.getElementById('admin-sync-num').innerText = last);
+       document.getElementById('draw-display') && (document.getElementById('draw-display').innerText = last);
+     
+       // 處理 isRolling 動畫（若為 true，顯示隨機滾動）
+       if(data.isRolling){
+         if(!rollingTimer) rollingTimer = setInterval(()=> {
+           const rand = Math.floor(Math.random()*25)+1;
+           document.getElementById('draw-display') && (document.getElementById('draw-display').innerText = rand);
+           document.getElementById('admin-sync-num') && (document.getElementById('admin-sync-num').innerText = rand);
+         }, 80);
+       } else {
+         if(rollingTimer){ clearInterval(rollingTimer); rollingTimer=null; }
+         // 最終號碼已在上面更新為 last
+         // 再嘗試 renderGrid（若 myData.board 存在）
+         if(myData && myData.board && myData.board.length) renderGrid();
+         if(currentUser && currentUser.uid === ALLOWED_UID) updateConnectedStats();
+       }
+     
+       // 幸運兒提示（僅在玩家端且被選中時顯示）
+       if(data.luckyUser && data.luckyUser === myData.name && !data.isRolling && currentUser && currentUser.uid !== ALLOWED_UID){
+         const num = prompt("你是幸運兒！請輸入 1-25 開獎號碼：");
+         if(num){
+           db.collection("pending_choices").doc(currentUser.uid).set({
+             number: parseInt(num),
+             playerName: myData.name,
+             timestamp: firebase.firestore.FieldValue.serverTimestamp()
+           });
+         }
+       }
+     });
 
-    // 幸運兒提示（僅在玩家端且被選中時顯示）
-    if(data.luckyUser && data.luckyUser === myData.name && !data.isRolling && currentUser && currentUser.uid !== ALLOWED_UID){
-      const num = prompt("你是幸運兒！請輸入 1-25 開獎號碼：");
-      if(num){
-        // 寫入 pending_choices/{uid} 由管理端審核
-        db.collection("pending_choices").doc(currentUser.uid).set({
-          number: parseInt(num),
-          playerName: myData.name,
-          timestamp: firebase.firestore.FieldValue.serverTimestamp()
-        });
-      }
-    }
-  });
 
   // players 監聽（統計）
   db.collection("players").onSnapshot(snap => {
@@ -428,18 +464,44 @@ async function drawNewNumber(){
 /* 重置（管理端） */
 async function handleReset(){
   if(!confirm("確定要重置所有資料嗎？此動作不可復原")) return;
-  // 批次刪除（注意：大量資料需分頁處理）
-  const collections = ["players","pending_choices","bingo_events","board_index"];
-  for(const coll of collections){
-    const snap = await db.collection(coll).get();
-    const batch = db.batch();
-    snap.forEach(d=>batch.delete(d.ref));
-    await batch.commit();
+
+  try {
+    // 批次刪除（注意：大量資料需分頁處理）
+    const collections = ["players","pending_choices","bingo_events","board_index"];
+    for(const coll of collections){
+      const snap = await db.collection(coll).get();
+      const batch = db.batch();
+      snap.forEach(d=>batch.delete(d.ref));
+      await batch.commit();
+    }
+    // 重置 game_state
+    await db.collection("game_state").doc("current_game").set({ history:[], isRolling:false, luckyUser:"", status:"waiting" });
+
+    // 清理前端狀態（但不登出）
+    myData = { name:"", board:[], locked:false, boardStr:"", version:0 };
+    gameHistory = [];
+    allPlayersCache = [];
+    // 停掉任何滾動動畫
+    if(rollingTimer){ clearInterval(rollingTimer); rollingTimer = null; }
+    // 重建 UI：若為管理者，保留管理面板；否則顯示登入
+    if(currentUser && currentUser.uid === ALLOWED_UID){
+      // 重新啟動監聽（startApp 已會建立監聽，呼叫一次以確保狀態同步）
+      startApp();
+      alert("成功重置（管理者仍保留登入狀態）");
+    } else {
+      // 一般玩家：回到登入畫面
+      document.getElementById('game-ui').classList.add('hidden');
+      document.getElementById('login-form').style.display = 'block';
+      document.getElementById('user-info').innerText = "未登入";
+      startApp();
+      alert("成功重置，請重新登入以建立新盤面");
+    }
+  } catch(e){
+    console.error(e);
+    alert("重置失敗：" + e);
   }
-  await db.collection("game_state").doc("current_game").set({ history:[], isRolling:false, luckyUser:"", status:"waiting" });
-  alert("已重置");
-  location.reload();
 }
+
 
 /* 管理端確認幸運兒號碼（Transaction 驗證不重複） */
 async function confirmLucky(docId, num){
