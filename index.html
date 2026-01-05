@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>2025 尾牙賓果系統 (連號統計版)</title>
+<title>2025 尾牙賓果系統 (管理優化版)</title>
 
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
@@ -25,14 +25,12 @@ body { margin:0; font-family:system-ui, -apple-system, sans-serif; background:va
 .grid { display:grid; grid-template-columns:repeat(5, 1fr); gap:6px; max-width:400px; margin:0 auto; }
 .cell { aspect-ratio:1; display:flex; align-items:center; justify-content:center; background:#f8f9fa; border:1px solid #eee; border-radius:8px; font-size:1.3rem; font-weight:bold; }
 .cell.selected { background:#fff3e0; color:#e65100; }
-/* 連線標示 */
 .cell.bingo-line { background:var(--success) !important; color:white !important; animation:pulse 1s infinite; }
 
 /* 管理者面板 */
 .admin-panel { display:flex; flex-direction:column; gap:15px; }
 .admin-card { background:var(--dark); color:white; padding:15px; border-radius:12px; }
 .stat-group { display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:10px; }
-/* 新增：連線數統計的小格子 */
 .line-stat-group { display:grid; grid-template-columns: repeat(4, 1fr); gap:5px; margin-bottom:10px; }
 .stat-box { background:rgba(255,255,255,0.1); padding:8px 5px; border-radius:8px; text-align:center; }
 .stat-val { font-size:1.2rem; font-weight:bold; color:var(--accent); display:block; }
@@ -52,12 +50,12 @@ input { padding:10px; border:1px solid #ddd; border-radius:8px; width:100%; marg
 
 <div class="container">
 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-<h1 onclick="triggerAdmin()" style="margin:0; color:var(--primary); cursor:pointer;">🧧 2025 賓果系統 006</h1>
+<h1 onclick="triggerAdmin()" style="margin:0; color:var(--primary); cursor:pointer;">🧧 2025 賓果系統0.07</h1>
 <div id="user-info" style="font-weight:bold;"></div>
 </div>
 
 <div class="layout">
-<div class="player-card">
+<div class="player-card" id="main-content-area">
 <div id="login-form">
 <input type="text" id="player-name" placeholder="輸入真實姓名進場">
 <button onclick="doPlayerLogin()" style="width:100%">進入遊戲</button>
@@ -101,7 +99,7 @@ input { padding:10px; border:1px solid #ddd; border-radius:8px; width:100%; marg
 </div>
 
 <div class="admin-card">
-<div style="font-size:0.9rem; margin-bottom:8px; font-weight:bold;">📢 最新賓果名單</div>
+<div style="font-size:0.9rem; margin-bottom:8px; font-weight:bold;">📢 即時賓果名單</div>
 <div id="bingo-alerts" class="bingo-alert-list">
 <div style="color:#999; font-size:0.8rem;">尚無賓果事件...</div>
 </div>
@@ -129,7 +127,6 @@ input { padding:10px; border:1px solid #ddd; border-radius:8px; width:100%; marg
 </div>
 
 <script>
-// --- 初始化 Firebase ---
 const firebaseConfig = {
 apiKey: "AIzaSyCLTGzCZUQm2ZzqfdBHk9D4xYpagaVtX7w",
 authDomain: "yearendbingo.firebaseapp.com",
@@ -148,25 +145,20 @@ const auth = firebase.auth();
 let currentUser = null;
 let myData = { name:"", board:[], locked:false };
 let gameHistory = [];
-let allPlayersCache = []; // 用於計算數據
+let allPlayersCache = [];
 let rollingTimer = null;
 const lines = [[0,1,2,3,4],[5,6,7,8,9],[10,11,12,13,14],[15,16,17,18,19],[20,21,22,23,24],[0,5,10,15,20],[1,6,11,16,21],[2,7,12,17,22],[3,8,13,18,23],[4,9,14,19,24],[0,6,12,18,24],[4,8,12,16,20]];
 
-// --- 登入邏輯 ---
 async function doPlayerLogin() {
 const name = document.getElementById('player-name').value.trim();
 if(!name) return alert("請輸入姓名");
 const cred = await auth.signInAnonymously();
 currentUser = cred.user;
-
 const snap = await db.collection("players").doc(currentUser.uid).get();
-if(snap.exists) {
-myData = snap.data();
-} else {
+if(snap.exists) { myData = snap.data(); } else {
 myData = { name: name, board: shuffleArray(), locked: false };
 await db.collection("players").doc(currentUser.uid).set(myData);
 }
-
 document.getElementById('login-form').style.display = 'none';
 document.getElementById('game-ui').style.display = 'block';
 document.getElementById('user-info').innerText = myData.name;
@@ -174,10 +166,8 @@ startApp();
 }
 
 function triggerAdmin() {
-let count = window.adminClicks || 0;
-count++;
-window.adminClicks = count;
-if(count >= 5) {
+window.adminClicks = (window.adminClicks || 0) + 1;
+if(window.adminClicks >= 5) {
 document.getElementById('admin-modal').style.display = 'flex';
 window.adminClicks = 0;
 }
@@ -191,6 +181,8 @@ const cred = await auth.signInWithEmailAndPassword(email, pwd);
 if(cred.user.uid === ALLOWED_UID) {
 document.getElementById('admin-modal').style.display = 'none';
 document.getElementById('login-form').style.display = 'none';
+// 直接清空左側區域內容
+document.getElementById('main-content-area').innerHTML = '<div style="padding:100px; color:#ccc;">管理者控制中...</div>';
 document.getElementById('admin-sidebar').style.display = 'flex';
 document.getElementById('user-info').innerText = "管理者模式";
 startApp();
@@ -198,14 +190,11 @@ startApp();
 } catch(e) { alert("登入失敗"); }
 }
 
-// --- 核心遊戲流程 ---
 function startApp() {
-// 1. 監聽遊戲狀態
 db.collection("game_state").doc("current_game").onSnapshot(doc => {
 const data = doc.data();
 if(!data) return;
 gameHistory = data.history || [];
-
 if(data.isRolling) {
 if(!rollingTimer) rollingTimer = setInterval(() => {
 const rand = Math.floor(Math.random()*25)+1;
@@ -218,31 +207,25 @@ const last = gameHistory.length ? gameHistory[gameHistory.length-1] : "READY";
 document.getElementById('draw-display').innerText = last;
 document.getElementById('admin-sync-num').innerText = last;
 renderGrid();
-// 管理者更新統計
 if(auth.currentUser && auth.currentUser.uid === ALLOWED_UID) updateConnectedStats();
 }
-
-// 修正：檢查 luckyUser 是否為空
-if(data.luckyUser && data.luckyUser === myData.name && !data.isRolling) {
+// 管理者不會觸發幸運兒視窗
+if(data.luckyUser && data.luckyUser === myData.name && !data.isRolling && auth.currentUser.uid !== ALLOWED_UID) {
 const num = prompt("你是幸運兒！請輸入 1-25 開獎號碼：");
 if(num) db.collection("pending_choices").add({ name:myData.name, num: parseInt(num) });
 }
 });
 
-// 2. 監聽在線玩家 (用於計算分佈)
 db.collection("players").onSnapshot(snap => {
 const list = snap.docs.map(d => d.data());
 allPlayersCache = list; 
-
 document.getElementById('count-total').innerText = list.length;
 const now = Date.now();
 const online = list.filter(p => p.lastSeen && (now - p.lastSeen.toMillis()) < 30000).length;
 document.getElementById('count-online').innerText = online;
-
 if(auth.currentUser && auth.currentUser.uid === ALLOWED_UID) updateConnectedStats();
 });
 
-// 3. 管理者專用
 if(auth.currentUser.uid === ALLOWED_UID) {
 db.collection("pending_choices").onSnapshot(snap => {
 const div = document.getElementById('pending-choices');
@@ -256,10 +239,7 @@ document.getElementById('pending-count').innerText = snap.size;
 
 db.collection("bingo_events").orderBy("timestamp","desc").limit(20).onSnapshot(snap => {
 const container = document.getElementById('bingo-alerts');
-if(snap.empty) {
-container.innerHTML = '<div style="color:#999; font-size:0.8rem;">尚無賓果事件...</div>';
-return;
-}
+if(snap.empty) { container.innerHTML = '<div style="color:#999; font-size:0.8rem;">尚無賓果事件...</div>'; return; }
 container.innerHTML = snap.docs.map(d => {
 const data = d.data();
 const timeStr = data.timestamp ? new Date(data.timestamp.toDate()).toLocaleTimeString() : "";
@@ -275,21 +255,18 @@ db.collection("players").doc(currentUser.uid).update({ lastSeen: firebase.firest
 }, 15000);
 }
 
-// --- 介面渲染 ---
 function renderGrid() {
 const grid = document.getElementById('bingo-grid');
+if(!grid) return; // 管理者模式下可能無此元素
 grid.innerHTML = "";
 const winIdx = new Set();
 let winCount = 0;
-
-// 計算連線 (僅用於玩家端顯示賓果狀態)
 lines.forEach(line => {
 if(line.every(idx => gameHistory.includes(myData.board[idx]))) {
 winCount++;
 line.forEach(idx => winIdx.add(idx));
 }
 });
-
 myData.board.forEach((num, i) => {
 const div = document.createElement('div');
 div.className = 'cell';
@@ -298,99 +275,65 @@ if(winIdx.has(i)) div.classList.add('bingo-line');
 div.innerText = num;
 grid.appendChild(div);
 });
-
-if(winCount > 0) {
+if(winCount > 0 && myData.locked) {
 document.getElementById('bingo-status').innerText = `已連成 ${winCount} 條線！`;
-if(myData.locked) {
-db.collection("bingo_events").doc(currentUser.uid).set({
-name: myData.name,
-timestamp: firebase.firestore.FieldValue.serverTimestamp()
-});
-}
+db.collection("bingo_events").doc(currentUser.uid).set({ name: myData.name, timestamp: firebase.firestore.FieldValue.serverTimestamp() });
 }
 document.getElementById('setup-btns').style.display = myData.locked ? 'none' : 'flex';
 }
 
-// --- 新功能：計算最大相鄰區塊 ---
 function calculateMaxConnected(board, history) {
-// 1. 找出所有被選中的索引
 const marked = new Set();
-board.forEach((num, idx) => {
-if(history.includes(num)) marked.add(idx);
-});
-
+board.forEach((num, idx) => { if(history.includes(num)) marked.add(idx); });
 if(marked.size === 0) return 0;
-
 let maxGroupSize = 0;
 const visited = new Set();
-
-// 2. 遍歷每一個格子，如果是選中且未訪問，開始擴散搜尋(BFS)
 for(let i=0; i<25; i++) {
 if(marked.has(i) && !visited.has(i)) {
-let currentGroupSize = 0;
+let count = 0;
 const stack = [i];
 visited.add(i);
-
 while(stack.length > 0) {
 const curr = stack.pop();
-currentGroupSize++;
-
-// 檢查上下左右鄰居
-const r = Math.floor(curr / 5);
-const c = curr % 5;
-
-// 上 (idx - 5)
-if(r > 0) checkNeighbor(curr - 5);
-// 下 (idx + 5)
-if(r < 4) checkNeighbor(curr + 5);
-// 左 (idx - 1)
-if(c > 0) checkNeighbor(curr - 1);
-// 右 (idx + 1)
-if(c < 4) checkNeighbor(curr + 1);
+count++;
+const r = Math.floor(curr / 5), c = curr % 5;
+const neighbors = [];
+if(r > 0) neighbors.push(curr - 5);
+if(r < 4) neighbors.push(curr + 5);
+if(c > 0) neighbors.push(curr - 1);
+if(c < 4) neighbors.push(curr + 1);
+neighbors.forEach(n => {
+if(marked.has(n) && !visited.has(n)) { visited.add(n); stack.push(n); }
+});
 }
-
-if(currentGroupSize > maxGroupSize) maxGroupSize = currentGroupSize;
+if(count > maxGroupSize) maxGroupSize = count;
 }
 }
-
-function checkNeighbor(targetIdx) {
-if(marked.has(targetIdx) && !visited.has(targetIdx)) {
-visited.add(targetIdx);
-stack.push(targetIdx);
-}
-}
-
 return maxGroupSize;
 }
 
 function updateConnectedStats() {
 const counts = { 5:0, 4:0, 3:0, 2:0 };
-
 allPlayersCache.forEach(p => {
-if(!p.board || !p.locked) return; // 只算鎖定玩家
-
+if(!p.board || !p.locked) return;
 const maxConn = calculateMaxConnected(p.board, gameHistory);
-
 if(maxConn >= 5) counts[5]++;
 else if(maxConn === 4) counts[4]++;
 else if(maxConn === 3) counts[3]++;
 else if(maxConn === 2) counts[2]++;
 });
-
 document.getElementById('cnt-5').innerText = counts[5];
 document.getElementById('cnt-4').innerText = counts[4];
 document.getElementById('cnt-3').innerText = counts[3];
 document.getElementById('cnt-2').innerText = counts[2];
 }
 
-// --- 管理者功能 ---
 async function drawNewNumber() {
 const ref = db.collection("game_state").doc("current_game");
 const snap = await ref.get();
 const history = snap.data()?.history || [];
 const pool = Array.from({length:25},(_,i)=>i+1).filter(n => !history.includes(n));
 if(!pool.length) return alert("已抽完");
-
 await ref.update({ isRolling: true });
 setTimeout(async () => {
 const pick = pool[Math.floor(Math.random()*pool.length)];
@@ -399,23 +342,20 @@ await ref.update({ isRolling: false, history: firebase.firestore.FieldValue.arra
 }
 
 async function handleReset() {
-if(!confirm("確定要重置所有資料嗎？這將刪除所有玩家與紀錄！")) return;
-try {
+if(!confirm("確定要重置所有資料嗎？")) return;
 const batch = db.batch();
-const ps = await db.collection("players").get(); ps.forEach(d => batch.delete(d.ref));
-const pcs = await db.collection("pending_choices").get(); pcs.forEach(d => batch.delete(d.ref));
-const bes = await db.collection("bingo_events").get(); bes.forEach(d => batch.delete(d.ref));
+const collections = ["players", "pending_choices", "bingo_events"];
+for(const coll of collections) {
+const snap = await db.collection(coll).get();
+snap.forEach(d => batch.delete(d.ref));
+}
 batch.set(db.collection("game_state").doc("current_game"), { history:[], isRolling:false, luckyUser:"" });
 await batch.commit();
-alert("成功重置！");
-location.reload();
-} catch(e) { alert("重置失敗: " + e.message); }
+alert("成功重置！"); location.reload();
 }
 
 async function confirmLucky(id, num) {
-await db.collection("game_state").doc("current_game").update({
-history: firebase.firestore.FieldValue.arrayUnion(num), luckyUser: ""
-});
+await db.collection("game_state").doc("current_game").update({ history: firebase.firestore.FieldValue.arrayUnion(num), luckyUser: "" });
 await db.collection("pending_choices").doc(id).delete();
 }
 
@@ -427,14 +367,12 @@ await db.collection("game_state").doc("current_game").update({ luckyUser: lucky 
 alert("天選之人已抽中：" + lucky);
 }
 
-// --- 工具 ---
 function shuffleArray() { return Array.from({length:25},(_,i)=>i+1).sort(()=>Math.random()-0.5); }
 function reRollBoard() { myData.board = shuffleArray(); renderGrid(); }
 async function confirmBoard() {
 if(!confirm("鎖定後不能更換號碼，確定嗎？")) return;
 await db.collection("players").doc(currentUser.uid).update({ locked:true, board: myData.board });
-myData.locked = true;
-renderGrid();
+myData.locked = true; renderGrid();
 }
 </script>
 </body>
