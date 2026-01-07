@@ -18,7 +18,7 @@
   --danger:#c62828;
   --shadow:0 6px 18px rgba(16,24,40,0.06);
   --radius:12px;
-  --base-font:16px;
+  --base-font:18px; /* 調整為 18px 以放大整體字級 */
 }
 
 /* 全局重設與可讀性優化 */
@@ -173,7 +173,7 @@ body{
   border-radius:10px;
   border:1px solid #eef2f7;
   font-weight:800;
-  font-size:1.2rem;
+  font-size:1.4rem; /* 放大格子字級 */
   user-select:none;
   transition:transform .12s ease, background .12s ease;
   touch-action:manipulation;
@@ -184,6 +184,15 @@ body{
 .cell.bingo-line{background:var(--success);color:#fff;animation:pulse 900ms infinite}
 
 @keyframes pulse{0%{transform:scale(1)}50%{transform:scale(1.03)}100%{transform:scale(1)}}
+
+/* 中央號碼顯示放大 */
+#draw-display{
+  font-size:5.2rem; /* 放大中央號碼 */
+  font-weight:800;
+  color:var(--primary);
+  height:120px;
+  line-height:120px;
+}
 
 /* Modal 覆蓋層改為彈性置中，JS 控制顯示時會改變 display */
 .modal-overlay{
@@ -207,7 +216,6 @@ body{
 
 /* 小元件微調 */
 .header .title{font-size:1.15rem}
-#draw-display{font-variant-numeric:tabular-nums}
 #bingo-status{height:26px;color:var(--success);font-weight:700}
 #setup-btns{margin-top:15px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
 
@@ -225,43 +233,47 @@ input[type="text"], input[type="email"], input[type="password"]{
 
 /* 小螢幕與中等螢幕的響應式規則 */
 @media (max-width:1024px){
-  :root{ --base-font:15px; }
+  :root{ --base-font:16.5px; } /* 輕微縮小但仍比原先大 */
   .title{font-size:1.1rem}
   .user-info{max-width:45%}
-  .cell{font-size:1.05rem}
+  .cell{font-size:1.25rem}
+  #draw-display{font-size:4.6rem;height:100px;line-height:100px}
 }
 
 /* 平板與小筆電 */
 @media (max-width:800px){
-  :root{ --base-font:15px; }
+  :root{ --base-font:16.5px; }
   .grid{grid-template-columns:repeat(4,1fr)}
-  .cell{font-size:1.05rem}
+  .cell{font-size:1.2rem}
   .user-info{max-width:40%}
   .modal-content{max-width:360px}
+  #draw-display{font-size:4.6rem;height:100px;line-height:100px}
 }
 
 /* 手機直向 */
 @media (max-width:520px){
-  :root{ --base-font:14px; }
+  :root{ --base-font:15px; } /* 保持較大字級以利操作 */
   .header{align-items:flex-start}
-  .user-info{max-width:100%;order:2;font-size:0.9rem}
+  .user-info{max-width:100%;order:2;font-size:0.95rem}
   .title{order:1;font-size:1rem}
   .stat-grid{grid-template-columns:repeat(2,1fr)}
   .grid{grid-template-columns:repeat(3,1fr); gap:6px}
-  .cell{font-size:1rem;border-radius:8px}
-  .btn{font-size:0.95rem;padding:10px 12px;min-height:40px}
+  .cell{font-size:1.15rem;border-radius:8px}
+  .btn{font-size:0.98rem;padding:10px 12px;min-height:42px}
   .history-ball{width:28px;height:28px;line-height:28px;font-size:0.8rem}
-  .status-log{font-size:0.8rem;max-height:140px}
+  .status-log{font-size:0.9rem;max-height:140px}
   #setup-btns{justify-content:stretch}
+  #draw-display{font-size:4.4rem;height:100px;line-height:100px}
 }
 
 /* 極小裝置或窄視窗 */
 @media (max-width:360px){
-  :root{ --base-font:13px; }
+  :root{ --base-font:14px; }
   .grid{grid-template-columns:repeat(2,1fr)}
-  .cell{font-size:0.95rem}
+  .cell{font-size:1.05rem}
   .stat-grid{grid-template-columns:1fr}
-  .user-info{font-size:0.85rem}
+  .user-info{font-size:0.9rem}
+  #draw-display{font-size:3.8rem;height:80px;line-height:80px}
 }
 
 /* 可選：讓被選格子在觸控時有更明顯回饋 */
@@ -281,7 +293,7 @@ input[type="text"], input[type="email"], input[type="password"]{
 
 <div class="container">
   <div class="header">
-    <div class="title" onclick="triggerAdmin()">🧧 2025 賓果系統 v2.9.1 auto fit</div>
+    <div class="title" onclick="triggerAdmin()">🧧 2025 賓果系統 v2.9.1</div>
     <div id="user-info" class="user-info">載入中...</div>
   </div>
 
@@ -296,13 +308,13 @@ input[type="text"], input[type="email"], input[type="password"]{
       <div style="display:flex;justify-content:space-between">
         <div>
           <div style="font-weight:700" id="player-name-display"></div>
-          <div id="lock-status-label" style="font-size:0.8rem;color:var(--muted)"></div>
+          <div id="lock-status-label" style="font-size:0.9rem;color:var(--muted)"></div>
         </div>
         <button class="btn ghost" onclick="doSignOut()">登出</button>
       </div>
 
       <div style="text-align:center;margin-top:10px">
-        <div id="draw-display" style="font-size:4rem;font-weight:800;color:var(--primary);height:100px;line-height:100px">READY</div>
+        <div id="draw-display">READY</div>
         <div id="bingo-status" style="height:26px;color:var(--success);font-weight:700"></div>
         <div id="bingo-grid" class="grid"></div>
         <div id="setup-btns" style="margin-top:15px;display:flex;gap:10px;justify-content:center">
@@ -326,14 +338,14 @@ input[type="text"], input[type="email"], input[type="password"]{
       </div>
 
       <div style="display:flex;gap:5px;margin-top:10px;flex-wrap:wrap">
-        <div class="stat-box" style="flex:1"><span id="cnt-5" class="stat-val">0</span><span style="font-size:0.7rem">5格連線</span></div>
-        <div class="stat-box" style="flex:1"><span id="cnt-4" class="stat-val">0</span><span style="font-size:0.7rem">4格連線</span></div>
-        <div class="stat-box" style="flex:1"><span id="cnt-3" class="stat-val">0</span><span style="font-size:0.7rem">3格連線</span></div>
-        <div class="stat-box" style="flex:1"><span id="cnt-2" class="stat-val">0</span><span style="font-size:0.7rem">2格連線</span></div>
+        <div class="stat-box" style="flex:1"><span id="cnt-5" class="stat-val">0</span><span style="font-size:0.8rem">5格連線</span></div>
+        <div class="stat-box" style="flex:1"><span id="cnt-4" class="stat-val">0</span><span style="font-size:0.8rem">4格連線</span></div>
+        <div class="stat-box" style="flex:1"><span id="cnt-3" class="stat-val">0</span><span style="font-size:0.8rem">3格連線</span></div>
+        <div class="stat-box" style="flex:1"><span id="cnt-2" class="stat-val">0</span><span style="font-size:0.8rem">2格連線</span></div>
       </div>
 
       <div style="margin-top:10px;text-align:center;background:#fff8e1;padding:10px;border-radius:10px">
-        <div style="font-size:0.8rem">最新開獎號 / 已開清單</div>
+        <div style="font-size:0.9rem">最新開獎號 / 已開清單</div>
         <div id="admin-sync-num" style="font-size:2.2rem;font-weight:800;color:var(--primary)">--</div>
         <div id="drawn-history-list" style="margin-top:5px;border-top:1px dashed #ddd;padding-top:5px"></div>
       </div>
