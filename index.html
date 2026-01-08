@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>2025 尾牙賓果系統 v2.9.1</title>
+<title>2025 尾牙賓果系統 v2.9.1.5</title>
 
 <link href="https://fonts.googleapis.com" rel="preconnect"/>
 <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
@@ -14,18 +14,17 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 
 <style>
-/* 融合 new 9 的變數設定 */
 :root {
-  --primary: #f45925;          /* new 9 Primary */
-  --primary-dark: #d64010;     /* new 9 Primary Dark */
-  --bg: #f8f6f5;               /* new 9 Background Light */
-  --card: #ffffff;             /* new 9 Surface Light */
+  --primary: #f45925;
+  --primary-dark: #d64010;
+  --bg: #f8f6f5;
+  --card: #ffffff;
   --text-main: #1c110d;
   --muted: #6b7280;
   --success: #2e7d32;
   --danger: #d64010;
   --shadow: 0 4px 12px rgba(244, 89, 37, 0.15);
-  --radius: 1rem;              /* new 9 Default Radius */
+  --radius: 1rem;
 }
 
 * { box-sizing: border-box; }
@@ -45,7 +44,6 @@ body {
   margin: 0 auto;
 }
 
-/* Header 樣式 */
 .header {
   display: flex;
   justify-content: space-between;
@@ -69,7 +67,6 @@ body {
   font-size: 0.9rem;
 }
 
-/* 卡片與元件樣式 */
 .card {
   background: var(--card);
   border-radius: var(--radius);
@@ -81,7 +78,6 @@ body {
 
 .hidden { display: none; }
   
-/* 需求 1: 玩家登入字樣加大 */
 #view-login h3 {
   font-size: 2.5rem;
   font-weight: 900;
@@ -90,10 +86,9 @@ body {
   margin-bottom: 30px;
 } 
   
-/* 按鈕樣式 - 參考 new 9 Action Buttons */
 .btn {
   padding: 12px 20px;
-  border-radius: 9999px; /* Pill shape */
+  border-radius: 9999px;
   border: none;
   font-weight: 700;
   cursor: pointer;
@@ -131,7 +126,6 @@ body {
   color: #b91c1c;
 }
 
-/* 統計區塊 */
 .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .stat-box {
   background: #fdfaf9;
@@ -148,7 +142,6 @@ body {
   font-size: 1.5rem;
 }
 
-/* 歷史球樣式 - 參考 new 9 Recent Calls */
 .status-log {
   max-height: 180px;
   overflow: auto;
@@ -173,7 +166,6 @@ body {
   font-size: 1rem;
 }
 
-/* 賓果盤面樣式 - 結合 new 9 .bingo-cell */
 .grid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
@@ -187,9 +179,9 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f4eae7; /* new 9 inactive background */
+  background: #f4eae7;
   color: var(--text-main);
-  border-radius: 50%; /* 圓形盤面 */
+  border-radius: 50%;
   font-weight: 800;
   font-size: 1.8rem;
   cursor: pointer;
@@ -218,7 +210,6 @@ body {
   100% { transform: scale(1.05); }
 }
 
-/* 抽號顯示 */
 #draw-display {
   font-size: 4.5rem;
   font-weight: 900;
@@ -226,9 +217,10 @@ body {
   height: 110px;
   line-height: 110px;
   text-align: center;
+  overflow: hidden;
+  white-space: nowrap;
 }
 
-/* Modal 樣式 */
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -258,7 +250,6 @@ input {
   font-size: 1.4rem;
 }
 
-/* 手機版優化 */
 @media (max-width: 600px) {
   html, body { font-size: 22px; }
   .grid { gap: 8px; }
@@ -281,7 +272,7 @@ input {
 
 <div class="container">
   <div class="header">
-    <div class="title" onclick="triggerAdmin()">🧧 2025 賓果系統 v2.9.1.4</div>
+    <div class="title" onclick="triggerAdmin()">🧧 2025 賓果系統 v2.9.1.5</div>
     <div id="user-info" class="user-info">載入中...</div>
   </div>
 
@@ -358,7 +349,6 @@ input {
 </div>
 
 <script>
-// --- JavaScript 保持完全不變 ---
 const firebaseConfig = {
   apiKey: "AIzaSyCLTGzCZUQm2ZzqfdBHk9D4xYpagaVtX7w",
   authDomain: "yearendbingo.firebaseapp.com",
@@ -431,44 +421,63 @@ function showView(name){
   document.getElementById('view-'+name).classList.remove('hidden');
 }
 
+// 新增函式：根據內容長度動態調整字體大小並更新顯示
+function updateDisplay(id, content) {
+  const el = document.getElementById(id);
+  if(!el) return;
+  el.innerText = content;
+  // 檢查是否為字串且長度大於 2 (針對名字優化)
+  if (content.toString().length > 2) {
+    el.style.fontSize = "2.2rem";
+  } else {
+    // 恢復號碼用的大字體
+    el.style.fontSize = window.innerWidth <= 600 ? "5.5rem" : "4.5rem";
+  }
+}
+
 function startApp(){
   db.collection("game_state").doc("current_game").onSnapshot(doc => {
-    const data = doc.data() || { history:[], isRolling:false, isAllLocked:false, luckyUser:"" };
+    const data = doc.data() || { history:[], isRolling:false, isAllLocked:false, luckyUser:"", isPickingLucky:false };
     gameHistory = data.history || [];
     isAllLockedGlobal = data.isAllLocked || false;
+    
     if(document.getElementById('admin-lock-indicator')) {
       document.getElementById('admin-lock-indicator').innerText = isAllLockedGlobal ? "✅ 已鎖定" : "🔓 未鎖定";
       document.getElementById('admin-lock-indicator').style.background = isAllLockedGlobal ? "#c8e6c9" : "#eee";
     }
-    const last = gameHistory.length ? gameHistory[gameHistory.length-1] : "READY";
+
+    // 優先順序：如果有正在生效的 luckyUser 就顯示暱稱，否則顯示歷史最後一號，都沒有就 READY
+    const finalShow = data.luckyUser ? data.luckyUser : (gameHistory.length ? gameHistory[gameHistory.length-1] : "READY");
     document.getElementById('drawn-history-list').innerHTML = gameHistory.map(n => `<span class="history-ball">${n}</span>`).join('') || "等待開號";
+    
     if(data.isRolling){
       if(!rollingTimer) {
         rollingTimer = setInterval(()=> {
-          // 判斷是抽號碼還是抽幸運兒
+          let tempVal;
           if (data.isPickingLucky) {
-             // 動畫：隨機顯示在線玩家名字
+             // 抽幸運兒動畫：跑名字
              if (allPlayersCache.length > 0) {
-               const randomName = allPlayersCache[Math.floor(Math.random()*allPlayersCache.length)].name;
-               document.getElementById('draw-display').innerText = randomName;
-               if(document.getElementById('admin-sync-num')) document.getElementById('admin-sync-num').innerText = randomName;
+               tempVal = allPlayersCache[Math.floor(Math.random()*allPlayersCache.length)].name;
+             } else {
+               tempVal = "抽獎中";
              }
           } else {
-             // 原本的號碼動畫
-             const r = Math.floor(Math.random()*25)+1;
-             document.getElementById('draw-display').innerText = r;
-             if(document.getElementById('admin-sync-num')) document.getElementById('admin-sync-num').innerText = r;
+             // 抽號碼動畫
+             tempVal = Math.floor(Math.random()*25)+1;
           }
+          updateDisplay('draw-display', tempVal);
+          if(document.getElementById('admin-sync-num')) document.getElementById('admin-sync-num').innerText = tempVal;
         }, 80);
       }
     } else {
       clearInterval(rollingTimer); rollingTimer=null;
-      document.getElementById('draw-display').innerText = last;
-      if(document.getElementById('admin-sync-num')) document.getElementById('admin-sync-num').innerText = last;
+      updateDisplay('draw-display', finalShow);
+      if(document.getElementById('admin-sync-num')) document.getElementById('admin-sync-num').innerText = finalShow;
       renderGrid();
       if(currentUser.uid === ALLOWED_UID) updateConnectedStats();
     }
 
+    // 幸運兒彈窗邏輯
     if(data.luckyUser && data.luckyUser === myData.name && !data.isRolling && currentUser.uid !== ALLOWED_UID) {
       let valid = false;
       let num;
@@ -548,27 +557,16 @@ function renderGrid(){
 
 function calculateMaxConsecutive(board, history) {
   const lines = [
-    [0,1,2,3,4],[5,6,7,8,9],[10,11,12,13,14],[15,16,17,18,19],[20,21,22,23,24], // 橫
-    [0,5,10,15,20],[1,6,11,16,21],[2,7,12,17,22],[3,8,13,18,23],[4,9,14,19,24], // 豎
-    [0,6,12,18,24],[4,8,12,16,20] // 斜
+    [0,1,2,3,4],[5,6,7,8,9],[10,11,12,13,14],[15,16,17,18,19],[20,21,22,23,24],
+    [0,5,10,15,20],[1,6,11,16,21],[2,7,12,17,22],[3,8,13,18,23],[4,9,14,19,24],
+    [0,6,12,18,24],[4,8,12,16,20]
   ];
-  
   let maxHits = 0;
-  
   lines.forEach(line => {
     let currentLineHits = 0;
-    line.forEach(index => {
-      // 只要該格號碼在歷史紀錄中，該線命中數就 +1
-      if(history.includes(board[index])) {
-        currentLineHits++;
-      }
-    });
-    // 紀錄 12 條線中命中數最高的一條
-    if(currentLineHits > maxHits) {
-      maxHits = currentLineHits;
-    }
+    line.forEach(index => { if(history.includes(board[index])) currentLineHits++; });
+    if(currentLineHits > maxHits) maxHits = currentLineHits;
   });
-  
   return maxHits;
 }
 
@@ -603,10 +601,10 @@ async function drawNewNumber(){
   const hist = snap.data().history || [];
   const pool = Array.from({length:25},(_,i)=>i+1).filter(n=>!hist.includes(n));
   if(!pool.length) return alert("抽完囉");
-  await ref.update({ isRolling: true, isPickingLucky: false });
+  await ref.update({ isRolling: true, isPickingLucky: false, luckyUser: "" });
   setTimeout(async ()=>{
     const p = pool[Math.floor(Math.random()*pool.length)];
-    await ref.update({ history: firebase.firestore.FieldValue.arrayUnion(p), isRolling:false, luckyUser: "" });
+    await ref.update({ history: firebase.firestore.FieldValue.arrayUnion(p), isRolling:false });
   }, 1200);
 }
 
@@ -627,7 +625,7 @@ async function handleReset(){
     const s = await db.collection(c).get();
     s.forEach(d=>batch.delete(d.ref));
   }
-  batch.set(db.collection("game_state").doc("current_game"), { history:[], isRolling:false, isAllLocked:false, luckyUser:"" });
+  batch.set(db.collection("game_state").doc("current_game"), { history:[], isRolling:false, isAllLocked:false, luckyUser:"", isPickingLucky:false });
   await batch.commit();
   location.reload();
 }
@@ -639,27 +637,21 @@ async function confirmLucky(id, num) {
 
 async function pickLucky() {
   if(allPlayersCache.length === 0) return alert("目前沒有玩家在線");
-  
   const ref = db.collection("game_state").doc("current_game");
-  
-  // 1. 開始滾動動畫 (設定為正在抽幸運兒)
-  await ref.update({ isRolling: true, isPickingLucky: true });
-  
-  // 2. 延遲 2 秒後產出結果
+  // 1. 開始滾動動畫 (並告知現在是抽幸運兒狀態)
+  await ref.update({ isRolling: true, isPickingLucky: true, luckyUser: "" });
+  // 2. 延遲 2.5 秒後產出結果
   setTimeout(async () => {
     const luckyObj = allPlayersCache[Math.floor(Math.random()*allPlayersCache.length)];
     const luckyName = luckyObj.name;
-    
-    // 3. 更新 Firebase 關閉動畫並填入幸運兒
+    // 3. 更新狀態：結束動畫並把結果寫入 luckyUser 讓全體玩家畫面停留在此名字
     await ref.update({ 
       isRolling: false, 
       isPickingLucky: false, 
       luckyUser: luckyName 
     });
-    
-    // 管理者端提示
     logStatus("🌟 抽出了幸運兒：" + luckyName);
-  }, 2000);
+  }, 2500);
 }
 
 function shuffleArray(){ return Array.from({length:25},(_,i)=>i+1).sort(()=>Math.random()-0.5); }
