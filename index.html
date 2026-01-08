@@ -601,4 +601,52 @@ async function removeAllPlayers() {
   if(!confirm("確定要刪除所有使用者嗎？")) return;
   const batch = db.batch();
   allPlayersCache.forEach(p => batch.delete(db.collection("players").doc(p.id)));
-  await 
+  await batch.commit();
+  location.reload();
+}
+
+async function handleReset(){
+  if(!confirm("確定重置遊戲？這會恢復所有人的換號功能。")) return;
+  const batch = db.batch();
+  allPlayersCache.forEach(p => batch.update(db.collection("players").doc(p.id), { locked: false }));
+  const colls = ["pending_choices","bingo_events"];
+  for(const c of colls){
+    const s = await db.collection(c).get();
+    s.forEach(d=>batch.delete(d.ref));
+  }
+  batch.set(db.collection("game_state").doc("current_game"), { history:[], isRolling:false, isAllLocked:false, luckyUser:"" });
+  await batch.commit();
+  location.reload();
+}
+
+async function confirmLucky(id, num) {
+  await db.collection("game_state").doc("current_game").update({ history: firebase.firestore.FieldValue.arrayUnion(num), luckyUser: "" });
+  await db.collection("pending_choices").doc(id).delete();
+}
+
+async function pickLucky() {
+  if(allPlayersCache.length === 0) return alert("沒人參與");
+  const lucky = allPlayersCache[Math.floor(Math.random()*allPlayersCache.length)].name;
+  await db.collection("game_state").doc("current_game").update({ luckyUser: lucky });
+  alert("幸運兒是：" + lucky);
+}
+
+function shuffleArray(){ return Array.from({length:25},(_,i)=>i+1).sort(()=>Math.random()-0.5); }
+function reRollBoard(){ myData.board = shuffleArray(); renderGrid(); }
+
+async function confirmBoard(){
+  if(!confirm("確定鎖定？")) return;
+  await db.collection("players").doc(currentUser.uid).update({ locked:true });
+  myData.locked = true; renderGrid();
+}
+
+function doSignOut(){ auth.signOut(); location.reload(); }
+
+setInterval(() => {
+  if(currentUser && currentUser.uid !== ALLOWED_UID) {
+    db.collection("players").doc(currentUser.uid).update({ lastSeen: firebase.firestore.FieldValue.serverTimestamp() }).catch(()=>{});
+  }
+}, 15000);
+</script>
+</body>
+</html>
