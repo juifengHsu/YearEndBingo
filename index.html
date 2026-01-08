@@ -421,16 +421,16 @@ function showView(name){
   document.getElementById('view-'+name).classList.remove('hidden');
 }
 
-// 新增函式：根據內容長度動態調整字體大小並更新顯示
-function updateDisplay(id, content) {
-  const el = document.getElementById(id);
+// 動態調整字體大小函數
+function updateDrawDisplay(text) {
+  const el = document.getElementById('draw-display');
   if(!el) return;
-  el.innerText = content;
-  // 檢查是否為字串且長度大於 2 (針對名字優化)
-  if (content.toString().length > 2) {
+  el.innerText = text;
+  // 如果是暱稱（字數通常 > 2），則縮小字體
+  if (text.toString().length > 2) {
     el.style.fontSize = "2.2rem";
   } else {
-    // 恢復號碼用的大字體
+    // 號碼則保持原始大字體
     el.style.fontSize = window.innerWidth <= 600 ? "5.5rem" : "4.5rem";
   }
 }
@@ -446,38 +446,38 @@ function startApp(){
       document.getElementById('admin-lock-indicator').style.background = isAllLockedGlobal ? "#c8e6c9" : "#eee";
     }
 
-    // 優先順序：如果有正在生效的 luckyUser 就顯示暱稱，否則顯示歷史最後一號，都沒有就 READY
-    const finalShow = data.luckyUser ? data.luckyUser : (gameHistory.length ? gameHistory[gameHistory.length-1] : "READY");
+    // 顯示邏輯：動畫結束後，若有 luckyUser 則優先顯示名字，否則顯示最新號碼
+    const finalDisplayValue = data.luckyUser ? data.luckyUser : (gameHistory.length ? gameHistory[gameHistory.length-1] : "READY");
     document.getElementById('drawn-history-list').innerHTML = gameHistory.map(n => `<span class="history-ball">${n}</span>`).join('') || "等待開號";
     
     if(data.isRolling){
       if(!rollingTimer) {
         rollingTimer = setInterval(()=> {
-          let tempVal;
+          let tempText;
           if (data.isPickingLucky) {
-             // 抽幸運兒動畫：跑名字
+             // 抽幸運兒時，隨機抓取在線玩家名字做動畫
              if (allPlayersCache.length > 0) {
-               tempVal = allPlayersCache[Math.floor(Math.random()*allPlayersCache.length)].name;
+               tempText = allPlayersCache[Math.floor(Math.random()*allPlayersCache.length)].name;
              } else {
-               tempVal = "抽獎中";
+               tempText = "...";
              }
           } else {
-             // 抽號碼動畫
-             tempVal = Math.floor(Math.random()*25)+1;
+             // 抽號碼時的動畫
+             tempText = Math.floor(Math.random()*25)+1;
           }
-          updateDisplay('draw-display', tempVal);
-          if(document.getElementById('admin-sync-num')) document.getElementById('admin-sync-num').innerText = tempVal;
+          updateDrawDisplay(tempText);
+          if(document.getElementById('admin-sync-num')) document.getElementById('admin-sync-num').innerText = tempText;
         }, 80);
       }
     } else {
       clearInterval(rollingTimer); rollingTimer=null;
-      updateDisplay('draw-display', finalShow);
-      if(document.getElementById('admin-sync-num')) document.getElementById('admin-sync-num').innerText = finalShow;
+      updateDrawDisplay(finalDisplayValue);
+      if(document.getElementById('admin-sync-num')) document.getElementById('admin-sync-num').innerText = finalDisplayValue;
       renderGrid();
       if(currentUser.uid === ALLOWED_UID) updateConnectedStats();
     }
 
-    // 幸運兒彈窗邏輯
+    // 當前玩家被選中時彈出輸入框
     if(data.luckyUser && data.luckyUser === myData.name && !data.isRolling && currentUser.uid !== ALLOWED_UID) {
       let valid = false;
       let num;
@@ -601,6 +601,7 @@ async function drawNewNumber(){
   const hist = snap.data().history || [];
   const pool = Array.from({length:25},(_,i)=>i+1).filter(n=>!hist.includes(n));
   if(!pool.length) return alert("抽完囉");
+  // 抽號碼時確保 isPickingLucky 是 false
   await ref.update({ isRolling: true, isPickingLucky: false, luckyUser: "" });
   setTimeout(async ()=>{
     const p = pool[Math.floor(Math.random()*pool.length)];
@@ -638,13 +639,14 @@ async function confirmLucky(id, num) {
 async function pickLucky() {
   if(allPlayersCache.length === 0) return alert("目前沒有玩家在線");
   const ref = db.collection("game_state").doc("current_game");
-  // 1. 開始滾動動畫 (並告知現在是抽幸運兒狀態)
+  // 1. 同步全體狀態：開始滾動、設定為抽人模式、清空舊結果
   await ref.update({ isRolling: true, isPickingLucky: true, luckyUser: "" });
-  // 2. 延遲 2.5 秒後產出結果
+  
+  // 2. 懸停動畫時間
   setTimeout(async () => {
     const luckyObj = allPlayersCache[Math.floor(Math.random()*allPlayersCache.length)];
     const luckyName = luckyObj.name;
-    // 3. 更新狀態：結束動畫並把結果寫入 luckyUser 讓全體玩家畫面停留在此名字
+    // 3. 停止滾動，設定得獎者名字
     await ref.update({ 
       isRolling: false, 
       isPickingLucky: false, 
