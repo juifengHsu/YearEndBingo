@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>2025 尾牙賓果系統 v2.9.3.2</title>
+<title>2025 尾牙賓果系統 v2.9.3.3</title>
 
 <link href="https://fonts.googleapis.com" rel="preconnect"/>
 <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
@@ -286,7 +286,7 @@ input {
 
 <div class="container">
   <div class="header">
-    <div class="title" onclick="triggerAdmin()">🧧 2025 賓果系統 v2.9.3.2</div>
+    <div class="title" onclick="triggerAdmin()">🧧 2025 賓果系統 v2.9.3.3</div>
     <div id="user-info" class="user-info">載入中...</div>
   </div>
 
@@ -422,27 +422,14 @@ async function doAdminLogin(){
 }
 
 auth.onAuthStateChanged(async user => {
-  auth.onAuthStateChanged(async user => {
   currentUser = user;
   if(!user){ showView('login'); return; }
   if(user.uid === ALLOWED_UID){ showView('admin'); startApp(); return; }
-  
   const snap = await db.collection("players").doc(user.uid).get();
-  
   if(snap.exists){
     myData = snap.data();
   } else {
-    // 這裡是最容易產生訪客的地方！
-    const name = document.getElementById('player-name').value.trim();
-    
-    // 改良邏輯：如果抓不到名字，表示資料是被管理者刪除的，強制要求重新登入
-    if(!name || name === "訪客") {
-      console.log("偵測到無效姓名，引導至登入頁面");
-      auth.signOut(); // 強制登出，讓使用者回到輸入姓名的畫面
-      showView('login');
-      return;
-    }
-    
+    const name = document.getElementById('player-name').value || "訪客";
     myData = { name, board: shuffleArray(), locked:false, lastSeen: firebase.firestore.FieldValue.serverTimestamp() };
     await db.collection("players").doc(user.uid).set(myData);
   }
