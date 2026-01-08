@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>2025 尾牙賓果系統 v2.9.1.5</title>
+<title>2025 尾牙賓果系統 v2.9.1.6</title>
 
 <link href="https://fonts.googleapis.com" rel="preconnect"/>
 <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
@@ -272,7 +272,7 @@ input {
 
 <div class="container">
   <div class="header">
-    <div class="title" onclick="triggerAdmin()">🧧 2025 賓果系統 v2.9.1.6</div>
+    <div class="title" onclick="triggerAdmin()">🧧 2025 賓果系統 v2.9.1.7</div>
     <div id="user-info" class="user-info">載入中...</div>
   </div>
 
@@ -426,11 +426,9 @@ function updateDrawDisplay(text) {
   const el = document.getElementById('draw-display');
   if(!el) return;
   el.innerText = text;
-  // 如果是暱稱（字數通常 > 2），則縮小字體
   if (text.toString().length > 2) {
     el.style.fontSize = "2.2rem";
   } else {
-    // 號碼則保持原始大字體
     el.style.fontSize = window.innerWidth <= 600 ? "5.5rem" : "4.5rem";
   }
 }
@@ -446,52 +444,39 @@ function startApp(){
       document.getElementById('admin-lock-indicator').style.background = isAllLockedGlobal ? "#c8e6c9" : "#eee";
     }
 
-    // 顯示邏輯：動畫結束後，若有 luckyUser 則優先顯示名字，否則顯示最新號碼
-    const finalDisplayValue = data.luckyUser ? data.luckyUser : (gameHistory.length ? gameHistory[gameHistory.length-1] : "READY");
+    const finalValue = data.luckyUser ? data.luckyUser : (gameHistory.length ? gameHistory[gameHistory.length-1] : "READY");
     document.getElementById('drawn-history-list').innerHTML = gameHistory.map(n => `<span class="history-ball">${n}</span>`).join('') || "等待開號";
     
     if(data.isRolling){
       if(!rollingTimer) {
         rollingTimer = setInterval(()=> {
-          let tempText;
+          let temp;
           if (data.isPickingLucky) {
-             // 抽幸運兒時，隨機抓取在線玩家名字做動畫
              if (allPlayersCache.length > 0) {
-               tempText = allPlayersCache[Math.floor(Math.random()*allPlayersCache.length)].name;
-             } else {
-               tempText = "...";
-             }
-          } else {
-             // 抽號碼時的動畫
-             tempText = Math.floor(Math.random()*25)+1;
-          }
-          updateDrawDisplay(tempText);
-          if(document.getElementById('admin-sync-num')) document.getElementById('admin-sync-num').innerText = tempText;
+               temp = allPlayersCache[Math.floor(Math.random()*allPlayersCache.length)].name;
+             } else { temp = "抽獎中"; }
+          } else { temp = Math.floor(Math.random()*25)+1; }
+          updateDrawDisplay(temp);
+          if(document.getElementById('admin-sync-num')) document.getElementById('admin-sync-num').innerText = temp;
         }, 80);
       }
     } else {
       clearInterval(rollingTimer); rollingTimer=null;
-      updateDrawDisplay(finalDisplayValue);
-      if(document.getElementById('admin-sync-num')) document.getElementById('admin-sync-num').innerText = finalDisplayValue;
+      updateDrawDisplay(finalValue);
+      if(document.getElementById('admin-sync-num')) document.getElementById('admin-sync-num').innerText = finalValue;
       renderGrid();
       if(currentUser.uid === ALLOWED_UID) updateConnectedStats();
     }
 
-    // 當前玩家被選中時彈出輸入框
     if(data.luckyUser && data.luckyUser === myData.name && !data.isRolling && currentUser.uid !== ALLOWED_UID) {
-      let valid = false;
-      let num;
+      let valid = false; let num;
       while(!valid) {
-        const input = prompt(`【🌟 恭喜你是幸運兒！】\n請輸入一個號碼 (1-25)：\n(注意：不能重複抽過的號碼)`);
+        const input = prompt(`【🌟 恭喜你是幸運兒！】\n請輸入一個號碼 (1-25)：`);
         if(input === null) break;
         num = parseInt(input);
-        if(isNaN(num) || num < 1 || num > 25) {
-          alert("錯誤：請輸入 1 到 25 之間的數字。");
-        } else if(gameHistory.includes(num)) {
-          alert(`${num} 已經被抽過囉，請換一個。`);
-        } else {
-          valid = true;
-        }
+        if(isNaN(num) || num < 1 || num > 25) alert("錯誤：請輸入 1 到 25 之間的數字。");
+        else if(gameHistory.includes(num)) alert(`${num} 已經被抽過囉。`);
+        else valid = true;
       }
       if(valid) {
         db.collection("pending_choices").doc(currentUser.uid).set({
@@ -504,7 +489,21 @@ function startApp(){
 
   db.collection("players").onSnapshot(snap => {
     allPlayersCache = snap.docs.map(d => ({id: d.id, ...d.data()}));
-    document.getElementById('count-total').innerText = allPlayersCache.length;
+    
+    // 管理者端：統計在線人數
+    if (currentUser.uid === ALLOWED_UID) {
+      const now = Date.now();
+      const onlinePlayers = allPlayersCache.filter(p => {
+        if (!p.lastSeen) return false;
+        // 將 Firebase Timestamp 轉為毫秒
+        const last = p.lastSeen.toMillis ? p.lastSeen.toMillis() : 0;
+        return (now - last) < 300000; // 5分鐘內算在線
+      });
+      document.getElementById('count-online').innerText = onlinePlayers.length;
+      document.getElementById('count-total').innerText = allPlayersCache.length;
+      updateConnectedStats();
+    }
+
     if(currentUser.uid !== ALLOWED_UID){
       const me = allPlayersCache.find(p => p.id === currentUser.uid);
       if(me && me.locked !== myData.locked) {
@@ -556,18 +555,14 @@ function renderGrid(){
 }
 
 function calculateMaxConsecutive(board, history) {
-  const lines = [
-    [0,1,2,3,4],[5,6,7,8,9],[10,11,12,13,14],[15,16,17,18,19],[20,21,22,23,24],
-    [0,5,10,15,20],[1,6,11,16,21],[2,7,12,17,22],[3,8,13,18,23],[4,9,14,19,24],
-    [0,6,12,18,24],[4,8,12,16,20]
-  ];
-  let maxHits = 0;
+  const lines = [[0,1,2,3,4],[5,6,7,8,9],[10,11,12,13,14],[15,16,17,18,19],[20,21,22,23,24],[0,5,10,15,20],[1,6,11,16,21],[2,7,12,17,22],[3,8,13,18,23],[4,9,14,19,24],[0,6,12,18,24],[4,8,12,16,20]];
+  let max = 0;
   lines.forEach(line => {
-    let currentLineHits = 0;
-    line.forEach(index => { if(history.includes(board[index])) currentLineHits++; });
-    if(currentLineHits > maxHits) maxHits = currentLineHits;
+    let hits = 0;
+    line.forEach(idx => { if(history.includes(board[idx])) hits++; });
+    if(hits > max) max = hits;
   });
-  return maxHits;
+  return max;
 }
 
 function updateConnectedStats(){
@@ -580,14 +575,13 @@ function updateConnectedStats(){
     else if(max === 3) counts[3]++;
     else if(max === 2) counts[2]++;
   });
-  document.getElementById('cnt-5').innerText = counts[5];
-  document.getElementById('cnt-4').innerText = counts[4];
-  document.getElementById('cnt-3').innerText = counts[3];
-  document.getElementById('cnt-2').innerText = counts[2];
+  if(document.getElementById('cnt-5')) document.getElementById('cnt-5').innerText = counts[5];
+  if(document.getElementById('cnt-4')) document.getElementById('cnt-4').innerText = counts[4];
+  if(document.getElementById('cnt-3')) document.getElementById('cnt-3').innerText = counts[3];
+  if(document.getElementById('cnt-2')) document.getElementById('cnt-2').innerText = counts[2];
 }
 
 async function forceLockAll() {
-  logStatus("正在執行全員鎖定...");
   const batch = db.batch();
   allPlayersCache.forEach(p => batch.update(db.collection("players").doc(p.id), { locked: true }));
   await batch.commit();
@@ -601,7 +595,6 @@ async function drawNewNumber(){
   const hist = snap.data().history || [];
   const pool = Array.from({length:25},(_,i)=>i+1).filter(n=>!hist.includes(n));
   if(!pool.length) return alert("抽完囉");
-  // 抽號碼時確保 isPickingLucky 是 false
   await ref.update({ isRolling: true, isPickingLucky: false, luckyUser: "" });
   setTimeout(async ()=>{
     const p = pool[Math.floor(Math.random()*pool.length)];
@@ -609,16 +602,8 @@ async function drawNewNumber(){
   }, 1200);
 }
 
-async function removeAllPlayers() {
-  if(!confirm("確定要刪除所有使用者嗎？")) return;
-  const batch = db.batch();
-  allPlayersCache.forEach(p => batch.delete(db.collection("players").doc(p.id)));
-  await batch.commit();
-  location.reload();
-}
-
 async function handleReset(){
-  if(!confirm("確定重置遊戲？這會恢復所有人的換號功能。")) return;
+  if(!confirm("確定重置遊戲？")) return;
   const batch = db.batch();
   allPlayersCache.forEach(p => batch.update(db.collection("players").doc(p.id), { locked: false }));
   const colls = ["pending_choices","bingo_events"];
@@ -637,41 +622,38 @@ async function confirmLucky(id, num) {
 }
 
 async function pickLucky() {
-  if(allPlayersCache.length === 0) return alert("目前沒有玩家在線");
+  if(allPlayersCache.length === 0) return alert("沒人在線");
   const ref = db.collection("game_state").doc("current_game");
-  // 1. 同步全體狀態：開始滾動、設定為抽人模式、清空舊結果
   await ref.update({ isRolling: true, isPickingLucky: true, luckyUser: "" });
-  
-  // 2. 懸停動畫時間
   setTimeout(async () => {
-    const luckyObj = allPlayersCache[Math.floor(Math.random()*allPlayersCache.length)];
-    const luckyName = luckyObj.name;
-    // 3. 停止滾動，設定得獎者名字
-    await ref.update({ 
-      isRolling: false, 
-      isPickingLucky: false, 
-      luckyUser: luckyName 
-    });
-    logStatus("🌟 抽出了幸運兒：" + luckyName);
+    const lucky = allPlayersCache[Math.floor(Math.random()*allPlayersCache.length)].name;
+    await ref.update({ isRolling: false, isPickingLucky: false, luckyUser: lucky });
+    logStatus("🌟 抽出了幸運兒：" + lucky);
   }, 2500);
 }
 
 function shuffleArray(){ return Array.from({length:25},(_,i)=>i+1).sort(()=>Math.random()-0.5); }
 function reRollBoard(){ myData.board = shuffleArray(); renderGrid(); }
-
 async function confirmBoard(){
   if(!confirm("確定鎖定？")) return;
   await db.collection("players").doc(currentUser.uid).update({ locked:true });
   myData.locked = true; renderGrid();
 }
-
 function doSignOut(){ auth.signOut(); location.reload(); }
+async function removeAllPlayers() {
+  if(!confirm("確定要刪除所有使用者嗎？")) return;
+  const batch = db.batch();
+  allPlayersCache.forEach(p => batch.delete(db.collection("players").doc(p.id)));
+  await batch.commit();
+  location.reload();
+}
 
+// 提高心跳包頻率，每 10 秒更新一次在線時間
 setInterval(() => {
   if(currentUser && currentUser.uid !== ALLOWED_UID) {
     db.collection("players").doc(currentUser.uid).update({ lastSeen: firebase.firestore.FieldValue.serverTimestamp() }).catch(()=>{});
   }
-}, 15000);
+}, 10000);
 </script>
 </body>
 </html>
