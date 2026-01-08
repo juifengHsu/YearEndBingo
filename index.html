@@ -443,11 +443,24 @@ function startApp(){
     const last = gameHistory.length ? gameHistory[gameHistory.length-1] : "READY";
     document.getElementById('drawn-history-list').innerHTML = gameHistory.map(n => `<span class="history-ball">${n}</span>`).join('') || "等待開號";
     if(data.isRolling){
-      if(!rollingTimer) rollingTimer = setInterval(()=> {
-        const r = Math.floor(Math.random()*25)+1;
-        document.getElementById('draw-display').innerText = r;
-        if(document.getElementById('admin-sync-num')) document.getElementById('admin-sync-num').innerText = r;
-      }, 80);
+      if(!rollingTimer) {
+        rollingTimer = setInterval(()=> {
+          // 判斷是抽號碼還是抽幸運兒
+          if (data.isPickingLucky) {
+             // 動畫：隨機顯示在線玩家名字
+             if (allPlayersCache.length > 0) {
+               const randomName = allPlayersCache[Math.floor(Math.random()*allPlayersCache.length)].name;
+               document.getElementById('draw-display').innerText = randomName;
+               if(document.getElementById('admin-sync-num')) document.getElementById('admin-sync-num').innerText = randomName;
+             }
+          } else {
+             // 原本的號碼動畫
+             const r = Math.floor(Math.random()*25)+1;
+             document.getElementById('draw-display').innerText = r;
+             if(document.getElementById('admin-sync-num')) document.getElementById('admin-sync-num').innerText = r;
+          }
+        }, 80);
+      }
     } else {
       clearInterval(rollingTimer); rollingTimer=null;
       document.getElementById('draw-display').innerText = last;
