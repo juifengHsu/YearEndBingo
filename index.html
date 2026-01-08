@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>2025 尾牙賓果系統 v2.9.3.3</title>
+<title>2025 尾牙賓果系統 v2.9.6</title>
 
 <link href="https://fonts.googleapis.com" rel="preconnect"/>
 <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
@@ -53,7 +53,6 @@ body {
   padding: 10px 0;
 }
 
-/* 修改：Title 字號小一號 (從 1.8rem 改為 1.5rem) */
 .title {
   font-size: 1.5rem;
   font-weight: 900;
@@ -213,7 +212,6 @@ body {
   100% { transform: scale(1.05); }
 }
 
-/* 修改：抽號顯示字樣小一號 (從 4.5rem 下降) */
 #draw-display {
   font-size: 3.5rem;
   font-weight: 900;
@@ -286,7 +284,7 @@ input {
 
 <div class="container">
   <div class="header">
-    <div class="title" onclick="triggerAdmin()">🧧 2025 賓果系統 v2.9.3.3</div>
+    <div class="title" onclick="triggerAdmin()">🧧 2025 賓果系統 v2.9.6</div>
     <div id="user-info" class="user-info">載入中...</div>
   </div>
 
@@ -425,14 +423,23 @@ auth.onAuthStateChanged(async user => {
   currentUser = user;
   if(!user){ showView('login'); return; }
   if(user.uid === ALLOWED_UID){ showView('admin'); startApp(); return; }
+  
   const snap = await db.collection("players").doc(user.uid).get();
+  
   if(snap.exists){
     myData = snap.data();
   } else {
-    const name = document.getElementById('player-name').value || "訪客";
+    // 關鍵修改：防止訪客產生。若無輸入姓名則強制登出。
+    const name = document.getElementById('player-name').value.trim();
+    if(!name || name === "訪客") {
+      auth.signOut();
+      showView('login');
+      return;
+    }
     myData = { name, board: shuffleArray(), locked:false, lastSeen: firebase.firestore.FieldValue.serverTimestamp() };
     await db.collection("players").doc(user.uid).set(myData);
   }
+  
   document.getElementById('user-info').innerText = myData.name;
   document.getElementById('player-name-display').innerText = myData.name;
   showView('player');
@@ -440,21 +447,12 @@ auth.onAuthStateChanged(async user => {
 });
 
 async function doPlayerLogin(){
-  const nameInput = document.getElementById('player-name').value.trim(); // 使用 trim() 去除前後空格
-  
-  // 檢查一：不可為空值
-  if(!nameInput) {
-    alert("請輸入您的真實姓名以參加遊戲！");
-    return; // 阻斷後續的登入流程
-  }
-  
-  // 檢查二：不可叫「訪客」（選擇性增加，確保名單品質）
-  if(nameInput === "訪客") {
-    alert("請輸入真實姓名，不要使用「訪客」作為名稱。");
+  const nameInput = document.getElementById('player-name').value.trim();
+  // 增加檢查：不允許空值或「訪客」登入
+  if(!nameInput || nameInput === "訪客") {
+    alert("請輸入您的真實姓名！");
     return;
   }
-
-  // 通過檢查後才執行匿名登入
   await auth.signInAnonymously();
 }
 
@@ -465,7 +463,6 @@ function showView(name){
   document.getElementById('view-'+name).classList.remove('hidden');
 }
 
-// 修改：更新抽號顯示字級
 function updateDrawDisplay(text) {
   const el = document.getElementById('draw-display');
   if(!el) return;
@@ -491,13 +488,11 @@ function startApp(){
       document.getElementById('admin-lock-indicator').style.background = isAllLockedGlobal ? "#c8e6c9" : "#eee";
     }
 
-    // 修改：特別獎顯示邏輯 (無名單時隱藏)
     const specialHtml = specialWinners.map(w => `<span class="special-winner-tag">🎁 ${w}</span>`).join('');
     if(document.getElementById('admin-special-winners')) document.getElementById('admin-special-winners').innerHTML = specialHtml;
     
     if(document.getElementById('player-special-winners')) {
         document.getElementById('player-special-winners').innerHTML = specialHtml;
-        // 修改：如果有得獎人才顯示區塊
         document.getElementById('player-special-box').style.display = specialWinners.length > 0 ? 'block' : 'none';
     }
 
@@ -518,8 +513,12 @@ function startApp(){
         rollingTimer = setInterval(()=> {
           let temp;
           if (data.isPickingLucky) {
-             if (allPlayersCache.length > 0) {
-               temp = allPlayersCache[Math.floor(Math.random()*allPlayersCache.length)].name;
+             const onlinePlayers = allPlayersCache.filter(p => {
+                const last = p.lastSeen?.toMillis ? p.lastSeen.toMillis() : 0;
+                return (Date.now() - last) < 300000 && p.id !== ALLOWED_UID && p.name !== "訪客";
+             });
+             if (onlinePlayers.length > 0) {
+               temp = onlinePlayers[Math.floor(Math.random()*onlinePlayers.length)].name;
              } else { temp = "抽獎中"; }
           } else { temp = Math.floor(Math.random()*25)+1; }
           updateDrawDisplay(temp);
@@ -534,8 +533,8 @@ function startApp(){
       if(currentUser.uid === ALLOWED_UID) updateConnectedStats();
     }
 
-    if(data.luckyUser && data.luckyUser === myData.name && !data.isRolling && !data.isPickingSpecial && currentUser.uid !== ALLOWED_UID) {
-      if (specialWinners.includes(data.luckyUser)) return; 
+    if(data.luckyUser && data.luckyUser === myData.name && !data.isRolling && currentUser.uid !== ALLOWED_UID) {
+      if (specialWinners.includes(myData.name)) return; 
       
       let valid = false; let num;
       while(!valid) {
@@ -613,7 +612,6 @@ function renderGrid(){
     grid.appendChild(div);
   });
   
-  // 修改：若重置後 gameHistory 為空，強制清空連線字樣
   if(winLineCount > 0 && myData.locked && gameHistory.length > 0) {
     document.getElementById('bingo-status').innerText = `已達成 ${winLineCount} 條線！`;
     db.collection("bingo_events").doc(currentUser.uid).set({ name: myData.name, timestamp: firebase.firestore.FieldValue.serverTimestamp() });
@@ -695,17 +693,15 @@ async function assignRandomDrawer() {
   const now = Date.now();
   const pool = allPlayersCache.filter(p => {
     const last = p.lastSeen?.toMillis ? p.lastSeen.toMillis() : 0;
-    return (now - last) < 300000 && !usedDrawers.includes(p.name);
+    const isOnline = (now - last) < 300000;
+    // 關鍵過濾：在線 + 沒抽過 + 不是管理員 + 不是訪客
+    return isOnline && !usedDrawers.includes(p.name) && p.id !== ALLOWED_UID && p.name !== "訪客";
   });
 
-  if (pool.length === 0) return alert("沒有符合資格的在線人員（或都已抽過）");
+  if (pool.length === 0) return alert("沒有符合資格的在線同仁（已排除訪客或已抽過者）");
 
   const luckyOne = pool[Math.floor(Math.random() * pool.length)].name;
-  
-  await ref.update({ 
-    authorizedDrawer: luckyOne,
-    luckyUser: "🎰 指定抽號者：" + luckyOne 
-  });
+  await ref.update({ authorizedDrawer: luckyOne, luckyUser: "🎰 指定抽號者：" + luckyOne });
   logStatus("🎯 已指定 " + luckyOne + " 執行下次抽號");
 }
 
@@ -714,10 +710,11 @@ async function drawSpecialPrize() {
   const pool = allPlayersCache.filter(p => {
     const last = p.lastSeen?.toMillis ? p.lastSeen.toMillis() : 0;
     const isOnline = (now - last) < 300000;
-    return isOnline && !specialWinners.includes(p.name);
+    // 關鍵過濾：在線 + 沒中過 + 不是管理員 + 不是訪客
+    return isOnline && !specialWinners.includes(p.name) && p.id !== ALLOWED_UID && p.name !== "訪客";
   });
 
-  if(pool.length === 0) return alert("沒有符合資格的在線人員（或都已中獎）");
+  if(pool.length === 0) return alert("沒有符合資格的在線同仁（已排除訪客或已中獎者）");
 
   const ref = db.collection("game_state").doc("current_game");
   await ref.update({ isRolling: true, isPickingLucky: true, luckyUser: "" });
@@ -734,13 +731,11 @@ async function drawSpecialPrize() {
   }, 2500);
 }
 
-// 修改：重置邏輯加入連線資訊清除
 async function handleReset(){
   if(!confirm("確定重置遊戲？(包含重置特別獎與抽號者名單)")) return;
   const batch = db.batch();
   allPlayersCache.forEach(p => batch.update(db.collection("players").doc(p.id), { locked: false }));
   
-  // 修改：確實清除所有通知與連線事件
   const colls = ["pending_choices","bingo_events"];
   for(const c of colls){
     const s = await db.collection(c).get();
@@ -748,14 +743,8 @@ async function handleReset(){
   }
   
   batch.set(db.collection("game_state").doc("current_game"), { 
-    history:[], 
-    isRolling:false, 
-    isAllLocked:false, 
-    luckyUser:"", 
-    isPickingLucky:false, 
-    specialWinners: [],
-    authorizedDrawer: "",
-    usedDrawers: []
+    history:[], isRolling:false, isAllLocked:false, luckyUser:"", isPickingLucky:false, 
+    specialWinners: [], authorizedDrawer: "", usedDrawers: []
   });
   await batch.commit();
   location.reload();
@@ -766,24 +755,22 @@ async function confirmLucky(id, num) {
   await db.collection("pending_choices").doc(id).delete();
 }
 
-/* 修改後的幸運兒挑選邏輯：與管理面板在線人數判斷一致 */
 async function pickLucky() {
   const now = Date.now();
-  // 篩選標準：5分鐘內有更新 lastSeen，且排除管理員 UID
+  // 關鍵過濾：同步在線判斷 (5分鐘內) + 排除管理員與訪客
   const onlinePool = allPlayersCache.filter(p => {
     const last = p.lastSeen?.toMillis ? p.lastSeen.toMillis() : 0;
-    const isOnline = (now - last) < 300000; // 300,000ms = 5分鐘
-    return isOnline && p.id !== ALLOWED_UID; 
+    const isOnline = (now - last) < 300000;
+    return isOnline && p.id !== ALLOWED_UID && p.name !== "訪客";
   });
 
-  if (onlinePool.length === 0) return alert("目前沒有在線同仁符合資格");
+  if(onlinePool.length === 0) return alert("目前沒有符合資格的在線同仁（已排除訪客）");
 
   const ref = db.collection("game_state").doc("current_game");
   await ref.update({ isRolling: true, isPickingLucky: true, luckyUser: "" });
   
   setTimeout(async () => {
-    // 從符合在線條件的名單中隨機抽選一名
-    const lucky = onlinePool[Math.floor(Math.random() * onlinePool.length)].name;
+    const lucky = onlinePool[Math.floor(Math.random()*onlinePool.length)].name;
     await ref.update({ isRolling: false, isPickingLucky: false, luckyUser: lucky });
     logStatus("🌟 抽出了幸運兒：" + lucky);
   }, 2500);
@@ -798,14 +785,14 @@ async function confirmBoard(){
 }
 function doSignOut(){ auth.signOut(); location.reload(); }
 
-// 修改：刪除所有使用者時強制登出
 async function removeAllPlayers() {
-  if(!confirm("確定要刪除所有使用者嗎？這將會讓您登出。")) return;
+  if(!confirm("警告：確定要刪除所有使用者嗎？這將會清空玩家名單並使您登出。")) return;
   const batch = db.batch();
   allPlayersCache.forEach(p => batch.delete(db.collection("players").doc(p.id)));
   await batch.commit();
-  await auth.signOut(); // 強制登出
-  location.reload(); // 回到登入畫面
+  // 刪除後強制登出，防止殘留的 session 自動重建「訪客」資料
+  await auth.signOut();
+  location.reload(); 
 }
 
 setInterval(() => {
