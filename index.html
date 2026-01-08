@@ -440,7 +440,21 @@ auth.onAuthStateChanged(async user => {
 });
 
 async function doPlayerLogin(){
-  if(!document.getElementById('player-name').value.trim()) return alert("請輸入姓名");
+  const nameInput = document.getElementById('player-name').value.trim(); // 使用 trim() 去除前後空格
+  
+  // 檢查一：不可為空值
+  if(!nameInput) {
+    alert("請輸入您的真實姓名以參加遊戲！");
+    return; // 阻斷後續的登入流程
+  }
+  
+  // 檢查二：不可叫「訪客」（選擇性增加，確保名單品質）
+  if(nameInput === "訪客") {
+    alert("請輸入真實姓名，不要使用「訪客」作為名稱。");
+    return;
+  }
+
+  // 通過檢查後才執行匿名登入
   await auth.signInAnonymously();
 }
 
