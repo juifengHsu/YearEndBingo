@@ -281,7 +281,7 @@ input {
 
 <div class="container">
   <div class="header">
-    <div class="title" onclick="triggerAdmin()">🧧 2025 賓果系統 v2.9.1.3</div>
+    <div class="title" onclick="triggerAdmin()">🧧 2025 賓果系統 v2.9.1.4</div>
     <div id="user-info" class="user-info">載入中...</div>
   </div>
 
@@ -603,7 +603,7 @@ async function drawNewNumber(){
   const hist = snap.data().history || [];
   const pool = Array.from({length:25},(_,i)=>i+1).filter(n=>!hist.includes(n));
   if(!pool.length) return alert("抽完囉");
-  await ref.update({ isRolling:true });
+  await ref.update({ isRolling: true, isPickingLucky: false });
   setTimeout(async ()=>{
     const p = pool[Math.floor(Math.random()*pool.length)];
     await ref.update({ history: firebase.firestore.FieldValue.arrayUnion(p), isRolling:false, luckyUser: "" });
@@ -638,10 +638,28 @@ async function confirmLucky(id, num) {
 }
 
 async function pickLucky() {
-  if(allPlayersCache.length === 0) return alert("沒人參與");
-  const lucky = allPlayersCache[Math.floor(Math.random()*allPlayersCache.length)].name;
-  await db.collection("game_state").doc("current_game").update({ luckyUser: lucky });
-  alert("幸運兒是：" + lucky);
+  if(allPlayersCache.length === 0) return alert("目前沒有玩家在線");
+  
+  const ref = db.collection("game_state").doc("current_game");
+  
+  // 1. 開始滾動動畫 (設定為正在抽幸運兒)
+  await ref.update({ isRolling: true, isPickingLucky: true });
+  
+  // 2. 延遲 2 秒後產出結果
+  setTimeout(async () => {
+    const luckyObj = allPlayersCache[Math.floor(Math.random()*allPlayersCache.length)];
+    const luckyName = luckyObj.name;
+    
+    // 3. 更新 Firebase 關閉動畫並填入幸運兒
+    await ref.update({ 
+      isRolling: false, 
+      isPickingLucky: false, 
+      luckyUser: luckyName 
+    });
+    
+    // 管理者端提示
+    logStatus("🌟 抽出了幸運兒：" + luckyName);
+  }, 2000);
 }
 
 function shuffleArray(){ return Array.from({length:25},(_,i)=>i+1).sort(()=>Math.random()-0.5); }
