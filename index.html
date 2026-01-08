@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>2025 尾牙賓果系統 v2.9.1.6</title>
+<title>2025 尾牙賓果系統 v2.9.2</title>
 
 <link href="https://fonts.googleapis.com" rel="preconnect"/>
 <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
@@ -23,6 +23,7 @@
   --muted: #6b7280;
   --success: #2e7d32;
   --danger: #d64010;
+  --special: #673ab7;
   --shadow: 0 4px 12px rgba(244, 89, 37, 0.15);
   --radius: 1rem;
 }
@@ -250,6 +251,19 @@ input {
   font-size: 1.4rem;
 }
 
+/* 新增特別獎顯示樣式 */
+.special-winner-tag {
+  display: inline-block;
+  background: #ede7f6;
+  color: var(--special);
+  padding: 4px 12px;
+  border-radius: 99px;
+  font-size: 0.9rem;
+  margin: 4px;
+  font-weight: 700;
+  border: 1px solid #d1c4e9;
+}
+
 @media (max-width: 600px) {
   html, body { font-size: 22px; }
   .grid { gap: 8px; }
@@ -272,7 +286,7 @@ input {
 
 <div class="container">
   <div class="header">
-    <div class="title" onclick="triggerAdmin()">🧧 2025 賓果系統 v2.9.1.7</div>
+    <div class="title" onclick="triggerAdmin()">🧧 2025 賓果系統 v2.9.2</div>
     <div id="user-info" class="user-info">載入中...</div>
   </div>
 
@@ -296,6 +310,12 @@ input {
         <div id="draw-display">READY</div>
         <div id="bingo-status" style="margin-top:6px; font-weight: 800; color: var(--success);"></div>
         <div id="bingo-grid" class="grid" aria-label="賓果盤"></div>
+        
+        <div id="player-special-box" style="margin-top:20px; padding-top:15px; border-top:1px solid #eee; display:none;">
+            <div style="font-size:0.8rem; color:var(--muted); margin-bottom:8px;">🎁 特別獎得獎名單</div>
+            <div id="player-special-winners"></div>
+        </div>
+
         <div id="setup-btns" style="margin-top:15px;display:flex;gap:10px;justify-content:center">
           <button class="btn ghost" onclick="reRollBoard()">🎲 換號碼</button>
           <button class="btn primary" onclick="confirmBoard()">🔒 鎖定盤面</button>
@@ -324,15 +344,17 @@ input {
       </div>
 
       <div style="margin-top:12px;text-align:center;background:#fff8e1;padding:12px;border-radius:10px">
-        <div style="font-size:0.9rem">最新開獎號 / 已開清單</div>
+        <div style="font-size:0.9rem">最新開獎 / 特別獎</div>
         <div id="admin-sync-num" style="font-weight:800;margin-top:6px; font-size: 2.5rem; color: var(--primary);">--</div>
+        <div id="admin-special-winners" style="margin-top:8px; color:var(--special); font-weight:700; font-size:0.9rem;"></div>
         <div id="drawn-history-list" style="margin-top:8px;border-top:1px dashed #ddd;padding-top:8px"></div>
       </div>
 
       <div style="margin-top:12px;display:grid;grid-template-columns:repeat(2,1fr);gap:10px">
         <button id="btn-draw" class="btn primary" onclick="drawNewNumber()">🎲 抽號 (自動鎖定)</button>
         <button class="btn" style="background:#455a64;color:white" onclick="forceLockAll()">🔒 強制全員鎖定</button>
-        <button class="btn" style="background:#ffb300; color: white;" onclick="pickLucky()">🌟 抽幸運兒</button>
+        <button class="btn" style="background:#ffb300; color: white;" onclick="pickLucky()">🌟 幸運兒選號</button>
+        <button class="btn" style="background:var(--special); color: white;" onclick="drawSpecialPrize()">🎁 抽特別獎</button>
         <button class="btn danger" onclick="removeAllPlayers()">🧹 移除所有使用者</button>
         <button class="btn ghost" style="grid-column: span 2; border:1px solid #ddd" onclick="handleReset()">⚠️ 重置遊戲狀態 (恢復換號)</button>
       </div>
@@ -365,6 +387,7 @@ const auth = firebase.auth();
 let currentUser = null;
 let myData = { name:"", board:[], locked:false };
 let gameHistory = [];
+let specialWinners = [];
 let allPlayersCache = [];
 let rollingTimer = null;
 let isAllLockedGlobal = false;
@@ -421,13 +444,14 @@ function showView(name){
   document.getElementById('view-'+name).classList.remove('hidden');
 }
 
-// 動態調整字體大小函數
 function updateDrawDisplay(text) {
   const el = document.getElementById('draw-display');
   if(!el) return;
   el.innerText = text;
-  if (text.toString().length > 2) {
-    el.style.fontSize = "2.2rem";
+  if (text.toString().length > 3) {
+    el.style.fontSize = "2.0rem";
+  } else if (text.toString().length > 2) {
+    el.style.fontSize = "2.8rem";
   } else {
     el.style.fontSize = window.innerWidth <= 600 ? "5.5rem" : "4.5rem";
   }
@@ -435,13 +459,22 @@ function updateDrawDisplay(text) {
 
 function startApp(){
   db.collection("game_state").doc("current_game").onSnapshot(doc => {
-    const data = doc.data() || { history:[], isRolling:false, isAllLocked:false, luckyUser:"", isPickingLucky:false };
+    const data = doc.data() || { history:[], isRolling:false, isAllLocked:false, luckyUser:"", isPickingLucky:false, specialWinners: [] };
     gameHistory = data.history || [];
+    specialWinners = data.specialWinners || [];
     isAllLockedGlobal = data.isAllLocked || false;
     
     if(document.getElementById('admin-lock-indicator')) {
       document.getElementById('admin-lock-indicator').innerText = isAllLockedGlobal ? "✅ 已鎖定" : "🔓 未鎖定";
       document.getElementById('admin-lock-indicator').style.background = isAllLockedGlobal ? "#c8e6c9" : "#eee";
+    }
+
+    // 更新特別獎顯示
+    const specialHtml = specialWinners.map(w => `<span class="special-winner-tag">🎁 ${w}</span>`).join('');
+    if(document.getElementById('admin-special-winners')) document.getElementById('admin-special-winners').innerHTML = specialHtml;
+    if(document.getElementById('player-special-winners')) {
+        document.getElementById('player-special-winners').innerHTML = specialHtml;
+        document.getElementById('player-special-box').style.display = specialWinners.length > 0 ? 'block' : 'none';
     }
 
     const finalValue = data.luckyUser ? data.luckyUser : (gameHistory.length ? gameHistory[gameHistory.length-1] : "READY");
@@ -468,7 +501,10 @@ function startApp(){
       if(currentUser.uid === ALLOWED_UID) updateConnectedStats();
     }
 
-    if(data.luckyUser && data.luckyUser === myData.name && !data.isRolling && currentUser.uid !== ALLOWED_UID) {
+    if(data.luckyUser && data.luckyUser === myData.name && !data.isRolling && !data.isPickingSpecial && currentUser.uid !== ALLOWED_UID) {
+      // 只有當 luckyUser 為自己且非特別獎時才跳出選號 (這部分邏輯不變)
+      if (specialWinners.includes(data.luckyUser)) return; 
+      
       let valid = false; let num;
       while(!valid) {
         const input = prompt(`【🌟 恭喜你是幸運兒！】\n請輸入一個號碼 (1-25)：`);
@@ -490,14 +526,12 @@ function startApp(){
   db.collection("players").onSnapshot(snap => {
     allPlayersCache = snap.docs.map(d => ({id: d.id, ...d.data()}));
     
-    // 管理者端：統計在線人數
     if (currentUser.uid === ALLOWED_UID) {
       const now = Date.now();
       const onlinePlayers = allPlayersCache.filter(p => {
         if (!p.lastSeen) return false;
-        // 將 Firebase Timestamp 轉為毫秒
         const last = p.lastSeen.toMillis ? p.lastSeen.toMillis() : 0;
-        return (now - last) < 300000; // 5分鐘內算在線
+        return (now - last) < 300000;
       });
       document.getElementById('count-online').innerText = onlinePlayers.length;
       document.getElementById('count-total').innerText = allPlayersCache.length;
@@ -602,8 +636,35 @@ async function drawNewNumber(){
   }, 1200);
 }
 
+// 特別獎抽取邏輯
+async function drawSpecialPrize() {
+  const now = Date.now();
+  // 只從 5 分鐘內在線且「尚未得過特別獎」的人中抽取
+  const pool = allPlayersCache.filter(p => {
+    const last = p.lastSeen?.toMillis ? p.lastSeen.toMillis() : 0;
+    const isOnline = (now - last) < 300000;
+    return isOnline && !specialWinners.includes(p.name);
+  });
+
+  if(pool.length === 0) return alert("沒有符合資格的在線人員（或都已中獎）");
+
+  const ref = db.collection("game_state").doc("current_game");
+  await ref.update({ isRolling: true, isPickingLucky: true, luckyUser: "" });
+
+  setTimeout(async () => {
+    const winner = pool[Math.floor(Math.random()*pool.length)].name;
+    await ref.update({ 
+        isRolling: false, 
+        isPickingLucky: false, 
+        luckyUser: "🎁 特別獎：" + winner,
+        specialWinners: firebase.firestore.FieldValue.arrayUnion(winner)
+    });
+    logStatus("🎁 抽出了特別獎：" + winner);
+  }, 2500);
+}
+
 async function handleReset(){
-  if(!confirm("確定重置遊戲？")) return;
+  if(!confirm("確定重置遊戲？(包含重置特別獎)")) return;
   const batch = db.batch();
   allPlayersCache.forEach(p => batch.update(db.collection("players").doc(p.id), { locked: false }));
   const colls = ["pending_choices","bingo_events"];
@@ -611,7 +672,7 @@ async function handleReset(){
     const s = await db.collection(c).get();
     s.forEach(d=>batch.delete(d.ref));
   }
-  batch.set(db.collection("game_state").doc("current_game"), { history:[], isRolling:false, isAllLocked:false, luckyUser:"", isPickingLucky:false });
+  batch.set(db.collection("game_state").doc("current_game"), { history:[], isRolling:false, isAllLocked:false, luckyUser:"", isPickingLucky:false, specialWinners: [] });
   await batch.commit();
   location.reload();
 }
@@ -648,7 +709,6 @@ async function removeAllPlayers() {
   location.reload();
 }
 
-// 提高心跳包頻率，每 10 秒更新一次在線時間
 setInterval(() => {
   if(currentUser && currentUser.uid !== ALLOWED_UID) {
     db.collection("players").doc(currentUser.uid).update({ lastSeen: firebase.firestore.FieldValue.serverTimestamp() }).catch(()=>{});
