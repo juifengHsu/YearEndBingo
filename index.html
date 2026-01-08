@@ -168,34 +168,51 @@ body {
 }
 
 .grid {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 12px;
-  width: 100%;
-  margin: 20px 0;
-}
-
-.cell {
-  aspect-ratio: 1;
   display: flex;
-  align-items: center;
+  flex-wrap: wrap;
+  /* 這裡設定球與球之間的間距 */
+  gap: 8px; 
+  width: 100%;
   justify-content: center;
+  margin: 15px 0;
+}
+.cell {
+  /* 關鍵修正：精確計算寬度，確保一排 5 顆球不超出螢幕 */
+  /* 計算方式：(總寬 100% - 4個間距 8px) / 5 */
+  width: calc((100% - 32px) / 5);
+  
+  /* 關鍵修正：讓高度等於寬度，確保正圓形 */
+  aspect-ratio: 1 / 1; 
+  
+  /* 預防措施：某些舊手機不支援 aspect-ratio，可改用下方這行代替 */
+  /* height: calc((100vw - 48px) / 5); */
+
   background: #f4eae7;
   color: var(--text-main);
   border-radius: 50%;
+  
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  
+  /* 關鍵修正：字體大小使用相對單位或縮小，避免 2 位數破壞圓圈 */
   font-weight: 800;
-  font-size: 1.8rem;
-  cursor: pointer;
-  transition: all 0.2s;
+  font-size: 1.2rem; 
+  
+  /* 確保文字水平垂直置中且不換行 */
+  line-height: 1;
+  text-align: center;
+  
   user-select: none;
-  -webkit-tap-highlight-color: transparent;
+  transition: background 0.2s, transform 0.1s;
 }
 
+/* 當球被選中時，稍微縮小 scale 或不變，避免放大導致邊緣切到 */
 .cell.selected {
   background-color: var(--primary);
   color: white;
-  box-shadow: 0 4px 12px rgba(244, 89, 37, 0.4);
-  transform: scale(1.05);
+  transform: scale(1.02); 
+  box-shadow: 0 2px 6px rgba(244, 89, 37, 0.3);
 }
 
 .cell.bingo-line {
@@ -264,11 +281,15 @@ input {
   border: 1px solid #d1c4e9;
 }
 
+/* 手機版特別優化 */
 @media (max-width: 600px) {
-  html, body { font-size: 22px; }
-  .grid { gap: 8px; }
-  .cell { font-size: 2.2rem; }
-  #draw-display { font-size: 5.5rem; }
+  .grid {
+    gap: 6px; /* 手機端間距稍微縮小 */
+  }
+  .cell {
+    width: calc((100% - 24px) / 5); /* 重新計算間距後的寬度 */
+    font-size: 1.1rem; /* 手機端數字稍微縮小，確保不出框 */
+  }
 }
 </style>
 </head>
