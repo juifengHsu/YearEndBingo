@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>2025 尾牙賓果系統 v2.9.3</title>
+<title>2025 尾牙賓果系統 v2.9.3.2</title>
 
 <link href="https://fonts.googleapis.com" rel="preconnect"/>
 <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
@@ -286,7 +286,7 @@ input {
 
 <div class="container">
   <div class="header">
-    <div class="title" onclick="triggerAdmin()">🧧 2025 賓果系統 v2.9.3.1</div>
+    <div class="title" onclick="triggerAdmin()">🧧 2025 賓果系統 v2.9.3.2</div>
     <div id="user-info" class="user-info">載入中...</div>
   </div>
 
@@ -752,12 +752,24 @@ async function confirmLucky(id, num) {
   await db.collection("pending_choices").doc(id).delete();
 }
 
+/* 修改後的幸運兒挑選邏輯：與管理面板在線人數判斷一致 */
 async function pickLucky() {
-  if(allPlayersCache.length === 0) return alert("沒人在線");
+  const now = Date.now();
+  // 篩選標準：5分鐘內有更新 lastSeen，且排除管理員 UID
+  const onlinePool = allPlayersCache.filter(p => {
+    const last = p.lastSeen?.toMillis ? p.lastSeen.toMillis() : 0;
+    const isOnline = (now - last) < 300000; // 300,000ms = 5分鐘
+    return isOnline && p.id !== ALLOWED_UID; 
+  });
+
+  if (onlinePool.length === 0) return alert("目前沒有在線同仁符合資格");
+
   const ref = db.collection("game_state").doc("current_game");
   await ref.update({ isRolling: true, isPickingLucky: true, luckyUser: "" });
+  
   setTimeout(async () => {
-    const lucky = allPlayersCache[Math.floor(Math.random()*allPlayersCache.length)].name;
+    // 從符合在線條件的名單中隨機抽選一名
+    const lucky = onlinePool[Math.floor(Math.random() * onlinePool.length)].name;
     await ref.update({ isRolling: false, isPickingLucky: false, luckyUser: lucky });
     logStatus("🌟 抽出了幸運兒：" + lucky);
   }, 2500);
