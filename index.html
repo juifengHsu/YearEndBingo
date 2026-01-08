@@ -2,8 +2,8 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-<title>2025 尾牙賓果系統 v2.9.2.1</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>2025 尾牙賓果系統 v2.9.2</title>
 
 <link href="https://fonts.googleapis.com" rel="preconnect"/>
 <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
@@ -29,8 +29,7 @@
 }
 
 * { box-sizing: border-box; }
-/* 修正 1：調降基礎字級防止整體溢出 */
-html, body { font-size: 20px; } 
+html, body { font-size: 26px; }
 
 body {
   margin: 0;
@@ -38,12 +37,11 @@ body {
   background-color: var(--bg);
   color: var(--text-main);
   line-height: 1.5;
-  overflow-x: hidden; /* 防止水平滾動 */
 }
 
 .container {
   max-width: 960px;
-  padding: 16px;
+  padding: 24px 16px;
   margin: 0 auto;
 }
 
@@ -51,15 +49,23 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 24px;
+  padding: 10px 0;
 }
 
 .title {
-  font-size: 1.4rem;
+  font-size: 1.8rem;
   font-weight: 900;
   color: var(--primary);
   letter-spacing: -0.04em;
   cursor: pointer;
+  user-select: none;
+}
+
+.user-info {
+  font-weight: 500;
+  color: var(--muted);
+  font-size: 0.9rem;
 }
 
 .card {
@@ -67,39 +73,106 @@ body {
   border-radius: var(--radius);
   box-shadow: 0 1px 3px rgba(0,0,0,0.1);
   border: 1px solid #f4eae7;
-  padding: 20px;
+  padding: 24px;
   margin-bottom: 20px;
 }
 
 .hidden { display: none; }
   
+#view-login h3 {
+  font-size: 2.5rem;
+  font-weight: 900;
+  color: var(--primary);
+  text-align: center;
+  margin-bottom: 30px;
+} 
+  
 .btn {
-  padding: 10px 18px;
+  padding: 12px 20px;
   border-radius: 9999px;
   border: none;
   font-weight: 700;
   cursor: pointer;
-  font-size: 1.1rem;
+  font-size: 1.4rem;
   transition: all 0.2s;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 8px;
 }
 
-.btn.primary { background: var(--primary); color: #fff; }
-.btn.ghost { background: #fff; color: var(--text-main); border: 1px solid #e5e7eb; }
-.btn.danger { background: #fee2e2; color: #b91c1c; }
+.btn.primary {
+  background: var(--primary);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(244, 89, 37, 0.3);
+}
 
-.stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.stat-box { background: #fdfaf9; padding: 12px; border-radius: 12px; text-align: center; border: 1px solid #f4eae7; }
-.stat-val { font-weight: 800; color: var(--primary); font-size: 1.2rem; display: block; }
+.btn.primary:hover {
+  background: var(--primary-dark);
+  transform: translateY(-1px);
+}
+
+.btn.ghost {
+  background: #fff;
+  color: var(--text-main);
+  border: 1px solid #e5e7eb;
+}
+
+.btn.ghost:hover {
+  background: #f9fafb;
+}
+
+.btn.danger {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.stat-box {
+  background: #fdfaf9;
+  padding: 16px;
+  border-radius: 12px;
+  text-align: center;
+  border: 1px solid #f4eae7;
+}
+
+.stat-val {
+  font-weight: 800;
+  color: var(--primary);
+  display: block;
+  font-size: 1.5rem;
+}
+
+.status-log {
+  max-height: 180px;
+  overflow: auto;
+  padding: 12px;
+  border-radius: 12px;
+  background: #2f1f1a;
+  color: #fcf9f8;
+  font-size: 0.85rem;
+}
+
+.history-ball {
+  display: inline-block;
+  width: 40px;
+  height: 40px;
+  line-height: 40px;
+  background: #f4eae7;
+  color: var(--text-main);
+  border-radius: 50%;
+  margin: 4px;
+  text-align: center;
+  font-weight: 700;
+  font-size: 1rem;
+}
 
 .grid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: 8px; /* 修正 2：縮小間距防止超出框框 */
+  gap: 12px;
   width: 100%;
-  margin: 15px 0;
+  margin: 20px 0;
 }
 
 .cell {
@@ -111,66 +184,97 @@ body {
   color: var(--text-main);
   border-radius: 50%;
   font-weight: 800;
-  /* 修正 3：使用 vw 或更小的尺寸，確保文字不出圈 */
-  font-size: 1.4rem; 
+  font-size: 1.8rem;
   cursor: pointer;
+  transition: all 0.2s;
   user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .cell.selected {
   background-color: var(--primary);
   color: white;
-  box-shadow: 0 2px 8px rgba(244, 89, 37, 0.4);
-  transform: scale(1.02); /* 修正 4：縮小縮放比例 */
+  box-shadow: 0 4px 12px rgba(244, 89, 37, 0.4);
+  transform: scale(1.05);
 }
 
 .cell.bingo-line {
   background: #2e7d32;
   color: #fff;
-  animation: pulse 1s infinite;
+  animation: pulse 900ms infinite;
+  box-shadow: 0 0 15px rgba(46, 125, 50, 0.4);
 }
 
 @keyframes pulse {
-  0% { transform: scale(1.02); }
-  50% { transform: scale(1.08); }
-  100% { transform: scale(1.02); }
+  0% { transform: scale(1.05); }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1.05); }
 }
 
 #draw-display {
-  font-size: 4rem;
+  font-size: 4.5rem;
   font-weight: 900;
   color: var(--primary);
-  height: 100px;
-  line-height: 100px;
+  height: 110px;
+  line-height: 110px;
   text-align: center;
+  overflow: hidden;
+  white-space: nowrap;
 }
 
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(28, 17, 13, 0.8);
+  backdrop-blur: 4px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+}
+
+.modal-content {
+  background: white;
+  padding: 32px;
+  border-radius: 20px;
+  width: 95vw;
+  max-width: 400px;
+  box-shadow: 0 20px 25px -5px rgba(0,0,0,0.2);
+}
+
+input {
+  width: 100%;
+  padding: 12px 16px;
+  margin-bottom: 12px;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  font-size: 1.4rem;
+}
+
+/* 新增特別獎顯示樣式 */
 .special-winner-tag {
   display: inline-block;
   background: #ede7f6;
   color: var(--special);
-  padding: 4px 10px;
+  padding: 4px 12px;
   border-radius: 99px;
-  font-size: 0.8rem;
-  margin: 3px;
+  font-size: 0.9rem;
+  margin: 4px;
   font-weight: 700;
+  border: 1px solid #d1c4e9;
 }
 
-.status-log { max-height: 150px; overflow: auto; background: #2f1f1a; color: #fff; font-size: 0.75rem; padding: 10px; border-radius: 10px; }
-
 @media (max-width: 600px) {
-  html, body { font-size: 18px; }
-  .container { padding: 12px; }
-  .grid { gap: 6px; }
-  /* 修正 5：手機版字體再縮小，避免 2 位數超出球體 */
-  .cell { font-size: 1.3rem; }
-  #draw-display { font-size: 4.5rem; }
+  html, body { font-size: 22px; }
+  .grid { gap: 8px; }
+  .cell { font-size: 2.2rem; }
+  #draw-display { font-size: 5.5rem; }
 }
 </style>
 </head>
 
 <body>
-<div id="admin-modal" class="modal-overlay">
+  <div id="admin-modal" class="modal-overlay">
   <div class="modal-content">
     <h3>管理者登入</h3>
     <input id="admin-email" type="email" placeholder="Email">
@@ -182,12 +286,12 @@ body {
 
 <div class="container">
   <div class="header">
-    <div class="title" onclick="triggerAdmin()">🧧 2025 賓果 v2.9.2.1</div>
+    <div class="title" onclick="triggerAdmin()">🧧 2025 賓果系統 v2.9.2</div>
     <div id="user-info" class="user-info">載入中...</div>
   </div>
 
   <div id="view-login" class="card hidden">
-    <h3 style="text-align:center; font-size: 2rem; color: var(--primary);">玩家登入</h3>
+    <h3>玩家登入</h3>
     <input id="player-name" type="text" placeholder="請輸入真實姓名" />
     <button class="btn primary" style="width:100%;margin-top:12px" onclick="doPlayerLogin()">進入遊戲</button>
   </div>
@@ -196,19 +300,19 @@ body {
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center">
         <div>
-          <div id="player-name-display" style="font-weight:700;"></div>
-          <div id="lock-status-label" style="font-size:0.8rem;color:var(--muted)"></div>
+          <div id="player-name-display" style="font-weight:700;font-size:1.1rem"></div>
+          <div id="lock-status-label" style="font-size:0.95rem;color:var(--muted)"></div>
         </div>
-        <button class="btn ghost" style="padding: 5px 12px; font-size: 0.8rem;" onclick="doSignOut()">登出</button>
+        <button class="btn ghost" onclick="doSignOut()">登出</button>
       </div>
 
-      <div style="text-align:center;margin-top:10px">
+      <div style="text-align:center;margin-top:12px">
         <div id="draw-display">READY</div>
-        <div id="bingo-status" style="margin-top:5px; font-weight: 800; color: var(--success); font-size: 0.9rem;"></div>
-        <div id="bingo-grid" class="grid"></div>
+        <div id="bingo-status" style="margin-top:6px; font-weight: 800; color: var(--success);"></div>
+        <div id="bingo-grid" class="grid" aria-label="賓果盤"></div>
         
-        <div id="player-special-box" style="margin-top:15px; padding-top:10px; border-top:1px solid #eee; display:none;">
-            <div style="font-size:0.75rem; color:var(--muted); margin-bottom:5px;">🎁 特別獎名單</div>
+        <div id="player-special-box" style="margin-top:20px; padding-top:15px; border-top:1px solid #eee; display:none;">
+            <div style="font-size:0.8rem; color:var(--muted); margin-bottom:8px;">🎁 特別獎得獎名單</div>
             <div id="player-special-winners"></div>
         </div>
 
@@ -223,47 +327,50 @@ body {
   <div id="view-admin" class="hidden">
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center">
-        <div style="font-weight:700; font-size: 0.9rem;">管理控制台 <span id="admin-lock-indicator" style="font-size:0.7rem;padding:2px 6px;background:#eee;border-radius:6px">未鎖定</span></div>
-        <button class="btn ghost" style="padding: 5px 12px; font-size: 0.8rem;" onclick="doSignOut()">登出</button>
+        <div style="font-weight:700">管理者控制台 <span id="admin-lock-indicator" style="font-size:0.8rem;padding:4px 8px;background:#eee;border-radius:6px">未鎖定</span></div>
+        <button class="btn ghost" onclick="doSignOut()">登出</button>
       </div>
 
       <div class="stat-grid" style="margin-top:12px">
-        <div class="stat-box"><span id="count-online" class="stat-val">0</span><span style="font-size:0.7rem">在線</span></div>
-        <div class="stat-box"><span id="count-total" class="stat-val">0</span><span style="font-size:0.7rem">總人數</span></div>
+        <div class="stat-box"><span id="count-online" class="stat-val">0</span><span>在線</span></div>
+        <div class="stat-box"><span id="count-total" class="stat-val">0</span><span>總人數</span></div>
       </div>
 
-      <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
-        <div class="stat-box" style="flex:1;min-width:80px;padding:8px"><span id="cnt-5" class="stat-val">0</span><span style="font-size:0.6rem">5連</span></div>
-        <div class="stat-box" style="flex:1;min-width:80px;padding:8px"><span id="cnt-4" class="stat-val">0</span><span style="font-size:0.6rem">4連</span></div>
-        <div class="stat-box" style="flex:1;min-width:80px;padding:8px"><span id="cnt-3" class="stat-val">0</span><span style="font-size:0.6rem">3連</span></div>
-        <div class="stat-box" style="flex:1;min-width:80px;padding:8px"><span id="cnt-2" class="stat-val">0</span><span style="font-size:0.6rem">2連</span></div>
+      <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+        <div class="stat-box" style="flex:1;min-width:120px"><span id="cnt-5" class="stat-val">0</span><span style="font-size:0.8rem">5格連線</span></div>
+        <div class="stat-box" style="flex:1;min-width:120px"><span id="cnt-4" class="stat-val">0</span><span style="font-size:0.8rem">4格連線</span></div>
+        <div class="stat-box" style="flex:1;min-width:120px"><span id="cnt-3" class="stat-val">0</span><span style="font-size:0.8rem">3格連線</span></div>
+        <div class="stat-box" style="flex:1;min-width:120px"><span id="cnt-2" class="stat-val">0</span><span style="font-size:0.8rem">2格連線</span></div>
       </div>
 
-      <div style="margin-top:12px;text-align:center;background:#fff8e1;padding:10px;border-radius:10px">
-        <div id="admin-sync-num" style="font-weight:800; font-size: 2rem; color: var(--primary);">--</div>
-        <div id="admin-special-winners" style="margin-top:5px; color:var(--special); font-weight:700; font-size:0.8rem;"></div>
-        <div id="drawn-history-list" style="margin-top:5px;border-top:1px dashed #ddd;padding-top:5px"></div>
+      <div style="margin-top:12px;text-align:center;background:#fff8e1;padding:12px;border-radius:10px">
+        <div style="font-size:0.9rem">最新開獎 / 特別獎</div>
+        <div id="admin-sync-num" style="font-weight:800;margin-top:6px; font-size: 2.5rem; color: var(--primary);">--</div>
+        <div id="admin-special-winners" style="margin-top:8px; color:var(--special); font-weight:700; font-size:0.9rem;"></div>
+        <div id="drawn-history-list" style="margin-top:8px;border-top:1px dashed #ddd;padding-top:8px"></div>
       </div>
 
-      <div style="margin-top:12px;display:grid;grid-template-columns:repeat(2,1fr);gap:8px">
-        <button id="btn-draw" class="btn primary" onclick="drawNewNumber()">🎲 抽號</button>
-        <button class="btn" style="background:#455a64;color:white" onclick="forceLockAll()">🔒 強制鎖定</button>
-        <button class="btn" style="background:#ffb300; color: white;" onclick="pickLucky()">🌟 幸運選號</button>
+      <div style="margin-top:12px;display:grid;grid-template-columns:repeat(2,1fr);gap:10px">
+        <button id="btn-draw" class="btn primary" onclick="drawNewNumber()">🎲 抽號 (自動鎖定)</button>
+        <button class="btn" style="background:#455a64;color:white" onclick="forceLockAll()">🔒 強制全員鎖定</button>
+        <button class="btn" style="background:#ffb300; color: white;" onclick="pickLucky()">🌟 幸運兒選號</button>
         <button class="btn" style="background:var(--special); color: white;" onclick="drawSpecialPrize()">🎁 抽特別獎</button>
-        <button class="btn danger" onclick="removeAllPlayers()" style="grid-column: span 2">🧹 移除所有使用者</button>
-        <button class="btn ghost" style="grid-column: span 2; border:1px solid #ddd" onclick="handleReset()">⚠️ 重置遊戲</button>
+        <button class="btn danger" onclick="removeAllPlayers()">🧹 移除所有使用者</button>
+        <button class="btn ghost" style="grid-column: span 2; border:1px solid #ddd" onclick="handleReset()">⚠️ 重置遊戲狀態 (恢復換號)</button>
       </div>
 
-      <div class="card" style="margin-top:12px; padding: 15px;">
-        <div id="pending-choices" style="max-height:80px;overflow:auto;font-size:0.8rem;color:var(--primary);"></div>
-        <div id="bingo-alerts" style="max-height:80px;overflow:auto;font-size:0.8rem;color:var(--success);margin-top:5px"></div>
+      <div class="card" style="margin-top:12px; border-color: #f4eae7;">
+        <div style="font-weight:700;font-size:0.95rem">📢 賓果與選號通知</div>
+        <div id="pending-choices" style="max-height:120px;overflow:auto;font-size:0.95rem;color:var(--primary);margin-top:8px"></div>
+        <div id="bingo-alerts" style="max-height:120px;overflow:auto;font-size:0.95rem;color:var(--success);margin-top:8px"></div>
       </div>
+
+      <div class="card"><div id="status-log" class="status-log" aria-live="polite"></div></div>
     </div>
   </div>
 </div>
 
 <script>
-// Firebase 及邏輯部分與上一版相同，僅保留核心功能
 const firebaseConfig = {
   apiKey: "AIzaSyCLTGzCZUQm2ZzqfdBHk9D4xYpagaVtX7w",
   authDomain: "yearendbingo.firebaseapp.com",
@@ -285,6 +392,12 @@ let allPlayersCache = [];
 let rollingTimer = null;
 let isAllLockedGlobal = false;
 
+function logStatus(msg) {
+  const el = document.getElementById('status-log');
+  if(!el) return;
+  el.innerHTML = `<div>[${new Date().toLocaleTimeString()}] ${msg}</div>` + el.innerHTML;
+}
+
 function triggerAdmin() {
   window.ac = (window.ac || 0) + 1;
   if(window.ac >= 5) { document.getElementById('admin-modal').style.display = 'flex'; window.ac = 0; }
@@ -296,7 +409,7 @@ async function doAdminLogin(){
   const pwd = document.getElementById('admin-pwd').value;
   try {
     const cred = await auth.signInWithEmailAndPassword(email, pwd);
-    if(cred.user.uid === ALLOWED_UID) { closeAdminModal(); }
+    if(cred.user.uid === ALLOWED_UID) { closeAdminModal(); logStatus("管理員登入成功"); }
     else { alert("權限不足"); await auth.signOut(); }
   } catch(e){ alert("登入失敗"); }
 }
@@ -335,22 +448,28 @@ function updateDrawDisplay(text) {
   const el = document.getElementById('draw-display');
   if(!el) return;
   el.innerText = text;
-  if (text.toString().length > 3) el.style.fontSize = "1.8rem";
-  else if (text.toString().length > 2) el.style.fontSize = "2.5rem";
-  else el.style.fontSize = "4.5rem";
+  if (text.toString().length > 3) {
+    el.style.fontSize = "2.0rem";
+  } else if (text.toString().length > 2) {
+    el.style.fontSize = "2.8rem";
+  } else {
+    el.style.fontSize = window.innerWidth <= 600 ? "5.5rem" : "4.5rem";
+  }
 }
 
 function startApp(){
   db.collection("game_state").doc("current_game").onSnapshot(doc => {
-    const data = doc.data() || { history:[], isRolling:false, isAllLocked:false, luckyUser:"", specialWinners: [] };
+    const data = doc.data() || { history:[], isRolling:false, isAllLocked:false, luckyUser:"", isPickingLucky:false, specialWinners: [] };
     gameHistory = data.history || [];
     specialWinners = data.specialWinners || [];
     isAllLockedGlobal = data.isAllLocked || false;
     
     if(document.getElementById('admin-lock-indicator')) {
       document.getElementById('admin-lock-indicator').innerText = isAllLockedGlobal ? "✅ 已鎖定" : "🔓 未鎖定";
+      document.getElementById('admin-lock-indicator').style.background = isAllLockedGlobal ? "#c8e6c9" : "#eee";
     }
 
+    // 更新特別獎顯示
     const specialHtml = specialWinners.map(w => `<span class="special-winner-tag">🎁 ${w}</span>`).join('');
     if(document.getElementById('admin-special-winners')) document.getElementById('admin-special-winners').innerHTML = specialHtml;
     if(document.getElementById('player-special-winners')) {
@@ -364,7 +483,12 @@ function startApp(){
     if(data.isRolling){
       if(!rollingTimer) {
         rollingTimer = setInterval(()=> {
-          let temp = data.isPickingLucky ? (allPlayersCache.length > 0 ? allPlayersCache[Math.floor(Math.random()*allPlayersCache.length)].name : "...") : Math.floor(Math.random()*25)+1;
+          let temp;
+          if (data.isPickingLucky) {
+             if (allPlayersCache.length > 0) {
+               temp = allPlayersCache[Math.floor(Math.random()*allPlayersCache.length)].name;
+             } else { temp = "抽獎中"; }
+          } else { temp = Math.floor(Math.random()*25)+1; }
           updateDrawDisplay(temp);
           if(document.getElementById('admin-sync-num')) document.getElementById('admin-sync-num').innerText = temp;
         }, 80);
@@ -377,17 +501,23 @@ function startApp(){
       if(currentUser.uid === ALLOWED_UID) updateConnectedStats();
     }
 
-    if(data.luckyUser && data.luckyUser === myData.name && !data.isRolling && !data.luckyUser.includes("特別獎") && currentUser.uid !== ALLOWED_UID) {
+    if(data.luckyUser && data.luckyUser === myData.name && !data.isRolling && !data.isPickingSpecial && currentUser.uid !== ALLOWED_UID) {
+      // 只有當 luckyUser 為自己且非特別獎時才跳出選號 (這部分邏輯不變)
+      if (specialWinners.includes(data.luckyUser)) return; 
+      
       let valid = false; let num;
       while(!valid) {
-        const input = prompt(`【🌟 幸運兒】輸入號碼 (1-25)：`);
+        const input = prompt(`【🌟 恭喜你是幸運兒！】\n請輸入一個號碼 (1-25)：`);
         if(input === null) break;
         num = parseInt(input);
-        if(!isNaN(num) && num >= 1 && num <= 25 && !gameHistory.includes(num)) valid = true;
-        else alert("號碼無效或已抽過");
+        if(isNaN(num) || num < 1 || num > 25) alert("錯誤：請輸入 1 到 25 之間的數字。");
+        else if(gameHistory.includes(num)) alert(`${num} 已經被抽過囉。`);
+        else valid = true;
       }
       if(valid) {
-        db.collection("pending_choices").doc(currentUser.uid).set({ playerName: myData.name, number: num, timestamp: firebase.firestore.FieldValue.serverTimestamp() });
+        db.collection("pending_choices").doc(currentUser.uid).set({
+          playerName: myData.name, number: num, timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        });
         db.collection("game_state").doc("current_game").update({ luckyUser: "" });
       }
     }
@@ -395,22 +525,34 @@ function startApp(){
 
   db.collection("players").onSnapshot(snap => {
     allPlayersCache = snap.docs.map(d => ({id: d.id, ...d.data()}));
+    
     if (currentUser.uid === ALLOWED_UID) {
       const now = Date.now();
-      const online = allPlayersCache.filter(p => p.lastSeen && (now - p.lastSeen.toMillis()) < 300000);
-      document.getElementById('count-online').innerText = online.length;
+      const onlinePlayers = allPlayersCache.filter(p => {
+        if (!p.lastSeen) return false;
+        const last = p.lastSeen.toMillis ? p.lastSeen.toMillis() : 0;
+        return (now - last) < 300000;
+      });
+      document.getElementById('count-online').innerText = onlinePlayers.length;
       document.getElementById('count-total').innerText = allPlayersCache.length;
+      updateConnectedStats();
     }
-    const me = allPlayersCache.find(p => p.id === currentUser.uid);
-    if(me && me.locked !== myData.locked) { myData.locked = me.locked; renderGrid(); }
+
+    if(currentUser.uid !== ALLOWED_UID){
+      const me = allPlayersCache.find(p => p.id === currentUser.uid);
+      if(me && me.locked !== myData.locked) {
+        myData.locked = me.locked;
+        renderGrid();
+      }
+    }
   });
 
   if(currentUser.uid === ALLOWED_UID){
     db.collection("pending_choices").orderBy("timestamp","desc").onSnapshot(snap => {
-      document.getElementById('pending-choices').innerHTML = snap.docs.map(d => `<div>❓ ${d.data().playerName} 選 ${d.data().number} <button onclick="confirmLucky('${d.id}', ${d.data().number})">採納</button></div>`).join('');
+      document.getElementById('pending-choices').innerHTML = snap.docs.map(d => `<div>❓ ${d.data().playerName} 選了 ${d.data().number} <button onclick="confirmLucky('${d.id}', ${d.data().number})">採納</button></div>`).join('');
     });
-    db.collection("bingo_events").orderBy("timestamp","desc").limit(5).onSnapshot(snap => {
-      document.getElementById('bingo-alerts').innerHTML = snap.docs.map(d => `<div>🎉 <b>${d.data().name}</b> 賓果！</div>`).join('');
+    db.collection("bingo_events").orderBy("timestamp","desc").limit(10).onSnapshot(snap => {
+      document.getElementById('bingo-alerts').innerHTML = snap.docs.map(d => `<div>🎉 <b>${d.data().name}</b> 賓果了！</div>`).join('');
     });
   }
 }
@@ -420,10 +562,17 @@ function renderGrid(){
   if(!grid) return;
   grid.innerHTML = '';
   const winIdx = new Set();
-  const lines = [[0,1,2,3,4],[5,6,7,8,9],[10,11,12,13,14],[15,16,17,18,19],[20,21,22,23,24],[0,5,10,15,20],[1,6,11,16,21],[2,7,12,17,22],[3,8,13,18,23],[4,9,14,19,24],[0,6,12,18,24],[4,8,12,16,20]];
+  const lines = [
+    [0,1,2,3,4],[5,6,7,8,9],[10,11,12,13,14],[15,16,17,18,19],[20,21,22,23,24],
+    [0,5,10,15,20],[1,6,11,16,21],[2,7,12,17,22],[3,8,13,18,23],[4,9,14,19,24],
+    [0,6,12,18,24],[4,8,12,16,20]
+  ];
   let winLineCount = 0;
   lines.forEach(line => {
-    if(line.every(idx => gameHistory.includes(myData.board[idx]))) { line.forEach(i=>winIdx.add(i)); winLineCount++; }
+    if(line.every(idx => gameHistory.includes(myData.board[idx]))) {
+      line.forEach(i=>winIdx.add(i));
+      winLineCount++;
+    }
   });
   myData.board.forEach((num,i)=>{
     const div = document.createElement('div');
@@ -439,19 +588,31 @@ function renderGrid(){
   document.getElementById('lock-status-label').innerText = (myData.locked || isAllLockedGlobal) ? "🔒 盤面已鎖定" : "🎲 設定中...";
 }
 
+function calculateMaxConsecutive(board, history) {
+  const lines = [[0,1,2,3,4],[5,6,7,8,9],[10,11,12,13,14],[15,16,17,18,19],[20,21,22,23,24],[0,5,10,15,20],[1,6,11,16,21],[2,7,12,17,22],[3,8,13,18,23],[4,9,14,19,24],[0,6,12,18,24],[4,8,12,16,20]];
+  let max = 0;
+  lines.forEach(line => {
+    let hits = 0;
+    line.forEach(idx => { if(history.includes(board[idx])) hits++; });
+    if(hits > max) max = hits;
+  });
+  return max;
+}
+
 function updateConnectedStats(){
   const counts = {5:0,4:0,3:0,2:0};
   allPlayersCache.forEach(p=>{
     if(!p.board || !p.locked) return;
-    const lines = [[0,1,2,3,4],[5,6,7,8,9],[10,11,12,13,14],[15,16,17,18,19],[20,21,22,23,24],[0,5,10,15,20],[1,6,11,16,21],[2,7,12,17,22],[3,8,13,18,23],[4,9,14,19,24],[0,6,12,18,24],[4,8,12,16,20]];
-    let max = 0;
-    lines.forEach(line => {
-      let hits = line.filter(idx => gameHistory.includes(p.board[idx])).length;
-      if(hits > max) max = hits;
-    });
-    if(max >= 2 && max <= 5) counts[max]++;
+    const max = calculateMaxConsecutive(p.board, gameHistory);
+    if(max >= 5) counts[5]++;
+    else if(max === 4) counts[4]++;
+    else if(max === 3) counts[3]++;
+    else if(max === 2) counts[2]++;
   });
-  for(let i=2; i<=5; i++) if(document.getElementById('cnt-'+i)) document.getElementById('cnt-'+i).innerText = counts[i];
+  if(document.getElementById('cnt-5')) document.getElementById('cnt-5').innerText = counts[5];
+  if(document.getElementById('cnt-4')) document.getElementById('cnt-4').innerText = counts[4];
+  if(document.getElementById('cnt-3')) document.getElementById('cnt-3').innerText = counts[3];
+  if(document.getElementById('cnt-2')) document.getElementById('cnt-2').innerText = counts[2];
 }
 
 async function forceLockAll() {
@@ -475,26 +636,43 @@ async function drawNewNumber(){
   }, 1200);
 }
 
+// 特別獎抽取邏輯
 async function drawSpecialPrize() {
   const now = Date.now();
+  // 只從 5 分鐘內在線且「尚未得過特別獎」的人中抽取
   const pool = allPlayersCache.filter(p => {
     const last = p.lastSeen?.toMillis ? p.lastSeen.toMillis() : 0;
-    return (now - last) < 300000 && !specialWinners.includes(p.name);
+    const isOnline = (now - last) < 300000;
+    return isOnline && !specialWinners.includes(p.name);
   });
-  if(pool.length === 0) return alert("無資格人員");
+
+  if(pool.length === 0) return alert("沒有符合資格的在線人員（或都已中獎）");
+
   const ref = db.collection("game_state").doc("current_game");
   await ref.update({ isRolling: true, isPickingLucky: true, luckyUser: "" });
+
   setTimeout(async () => {
     const winner = pool[Math.floor(Math.random()*pool.length)].name;
-    await ref.update({ isRolling: false, isPickingLucky: false, luckyUser: "🎁 特別獎：" + winner, specialWinners: firebase.firestore.FieldValue.arrayUnion(winner) });
-  }, 2000);
+    await ref.update({ 
+        isRolling: false, 
+        isPickingLucky: false, 
+        luckyUser: "🎁 特別獎：" + winner,
+        specialWinners: firebase.firestore.FieldValue.arrayUnion(winner)
+    });
+    logStatus("🎁 抽出了特別獎：" + winner);
+  }, 2500);
 }
 
 async function handleReset(){
-  if(!confirm("確定重置？")) return;
+  if(!confirm("確定重置遊戲？(包含重置特別獎)")) return;
   const batch = db.batch();
   allPlayersCache.forEach(p => batch.update(db.collection("players").doc(p.id), { locked: false }));
-  batch.set(db.collection("game_state").doc("current_game"), { history:[], isRolling:false, isAllLocked:false, luckyUser:"", specialWinners: [] });
+  const colls = ["pending_choices","bingo_events"];
+  for(const c of colls){
+    const s = await db.collection(c).get();
+    s.forEach(d=>batch.delete(d.ref));
+  }
+  batch.set(db.collection("game_state").doc("current_game"), { history:[], isRolling:false, isAllLocked:false, luckyUser:"", isPickingLucky:false, specialWinners: [] });
   await batch.commit();
   location.reload();
 }
@@ -505,12 +683,14 @@ async function confirmLucky(id, num) {
 }
 
 async function pickLucky() {
+  if(allPlayersCache.length === 0) return alert("沒人在線");
   const ref = db.collection("game_state").doc("current_game");
   await ref.update({ isRolling: true, isPickingLucky: true, luckyUser: "" });
   setTimeout(async () => {
     const lucky = allPlayersCache[Math.floor(Math.random()*allPlayersCache.length)].name;
     await ref.update({ isRolling: false, isPickingLucky: false, luckyUser: lucky });
-  }, 2000);
+    logStatus("🌟 抽出了幸運兒：" + lucky);
+  }, 2500);
 }
 
 function shuffleArray(){ return Array.from({length:25},(_,i)=>i+1).sort(()=>Math.random()-0.5); }
@@ -522,7 +702,7 @@ async function confirmBoard(){
 }
 function doSignOut(){ auth.signOut(); location.reload(); }
 async function removeAllPlayers() {
-  if(!confirm("確定刪除所有使用者？")) return;
+  if(!confirm("確定要刪除所有使用者嗎？")) return;
   const batch = db.batch();
   allPlayersCache.forEach(p => batch.delete(db.collection("players").doc(p.id)));
   await batch.commit();
