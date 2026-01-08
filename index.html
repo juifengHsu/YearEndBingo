@@ -2,8 +2,8 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-<title>2025 尾牙賓果系統 v2.9.3</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>2025 尾牙賓果系統 v2.9.2</title>
 
 <link href="https://fonts.googleapis.com" rel="preconnect"/>
 <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
@@ -22,122 +22,307 @@
   --text-main: #1c110d;
   --muted: #6b7280;
   --success: #2e7d32;
+  --danger: #d64010;
   --special: #673ab7;
+  --shadow: 0 4px 12px rgba(244, 89, 37, 0.15);
   --radius: 1rem;
 }
 
-* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+* { box-sizing: border-box; }
+html, body { font-size: 26px; }
+
 body {
-  margin: 0; font-family: 'Spline Sans', 'Noto Sans TC', sans-serif;
-  background-color: var(--bg); color: var(--text-main); line-height: 1.5;
+  margin: 0;
+  font-family: 'Spline Sans', 'Noto Sans TC', system-ui, sans-serif;
+  background-color: var(--bg);
+  color: var(--text-main);
+  line-height: 1.5;
 }
 
-.container { max-width: 600px; margin: 0 auto; padding: 16px; }
+.container {
+  max-width: 960px;
+  padding: 24px 16px;
+  margin: 0 auto;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  padding: 10px 0;
+}
+
+.title {
+  font-size: 1.8rem;
+  font-weight: 900;
+  color: var(--primary);
+  letter-spacing: -0.04em;
+  cursor: pointer;
+  user-select: none;
+}
+
+.user-info {
+  font-weight: 500;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
 
 .card {
-  background: var(--card); border-radius: var(--radius);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05); border: 1px solid #f4eae7;
-  padding: 20px; margin-bottom: 20px;
+  background: var(--card);
+  border-radius: var(--radius);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  border: 1px solid #f4eae7;
+  padding: 24px;
+  margin-bottom: 20px;
 }
 
-.hidden { display: none !important; }
+.hidden { display: none; }
+  
+#view-login h3 {
+  font-size: 2.5rem;
+  font-weight: 900;
+  color: var(--primary);
+  text-align: center;
+  margin-bottom: 30px;
+} 
+  
+.btn {
+  padding: 12px 20px;
+  border-radius: 9999px;
+  border: none;
+  font-weight: 700;
+  cursor: pointer;
+  font-size: 1.4rem;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
 
-/* 修正後的 .cell 排版 */
+.btn.primary {
+  background: var(--primary);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(244, 89, 37, 0.3);
+}
+
+.btn.primary:hover {
+  background: var(--primary-dark);
+  transform: translateY(-1px);
+}
+
+.btn.ghost {
+  background: #fff;
+  color: var(--text-main);
+  border: 1px solid #e5e7eb;
+}
+
+.btn.ghost:hover {
+  background: #f9fafb;
+}
+
+.btn.danger {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.stat-box {
+  background: #fdfaf9;
+  padding: 16px;
+  border-radius: 12px;
+  text-align: center;
+  border: 1px solid #f4eae7;
+}
+
+.stat-val {
+  font-weight: 800;
+  color: var(--primary);
+  display: block;
+  font-size: 1.5rem;
+}
+
+.status-log {
+  max-height: 180px;
+  overflow: auto;
+  padding: 12px;
+  border-radius: 12px;
+  background: #2f1f1a;
+  color: #fcf9f8;
+  font-size: 0.85rem;
+}
+
+.history-ball {
+  display: inline-block;
+  width: 40px;
+  height: 40px;
+  line-height: 40px;
+  background: #f4eae7;
+  color: var(--text-main);
+  border-radius: 50%;
+  margin: 4px;
+  text-align: center;
+  font-weight: 700;
+  font-size: 1rem;
+}
+
 .grid {
-  display: flex; flex-wrap: wrap; gap: 8px; width: 100%;
-  justify-content: center; margin: 15px 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px; 
+  width: 100%;
+  justify-content: center;
+  margin: 15px 0;
 }
 .cell {
   width: calc((100% - 32px) / 5);
-  aspect-ratio: 1 / 1;
-  background: #f4eae7; color: var(--text-main); border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  font-weight: 800; font-size: 1.2rem; user-select: none;
+  aspect-ratio: 1 / 1; 
+  background: #f4eae7;
+  color: var(--text-main);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 1.2rem; 
+  line-height: 1;
+  text-align: center;
+  user-select: none;
+  transition: background 0.2s, transform 0.1s;
 }
-.cell.selected { background-color: var(--primary); color: white; }
-.cell.bingo-line { background: var(--success); color: white; }
+
+.cell.selected {
+  background-color: var(--primary);
+  color: white;
+  transform: scale(1.02); 
+  box-shadow: 0 2px 6px rgba(244, 89, 37, 0.3);
+}
+
+.cell.bingo-line {
+  background: #2e7d32;
+  color: #fff;
+  animation: pulse 900ms infinite;
+  box-shadow: 0 0 15px rgba(46, 125, 50, 0.4);
+}
+
+@keyframes pulse {
+  0% { transform: scale(1.05); }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1.05); }
+}
 
 #draw-display {
-  font-size: 3.5rem; font-weight: 900; color: var(--primary);
-  height: 100px; line-height: 100px; text-align: center; overflow: hidden;
+  font-size: 4.5rem;
+  font-weight: 900;
+  color: var(--primary);
+  height: 110px;
+  line-height: 110px;
+  text-align: center;
+  overflow: hidden;
+  white-space: nowrap;
 }
 
-.btn {
-  padding: 12px 20px; border-radius: 99px; border: none;
-  font-weight: 700; cursor: pointer; font-size: 1rem;
-  transition: all 0.2s; display: inline-flex; align-items: center; justify-content: center;
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(28, 17, 13, 0.8);
+  backdrop-blur: 4px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
 }
-.btn.primary { background: var(--primary); color: #fff; width: 100%; }
-.btn.ghost { background: #fff; color: var(--text-main); border: 1px solid #ddd; }
-.btn.special { background: var(--special); color: white; }
 
-.stat-box { background: #fdfaf9; padding: 10px; border-radius: 12px; text-align: center; border: 1px solid #f4eae7; flex: 1; }
-.stat-val { font-weight: 800; color: var(--primary); font-size: 1.2rem; display: block; }
+.modal-content {
+  background: white;
+  padding: 32px;
+  border-radius: 20px;
+  width: 95vw;
+  max-width: 400px;
+  box-shadow: 0 20px 25px -5px rgba(0,0,0,0.2);
+}
 
-input { width: 100%; padding: 12px; margin-bottom: 12px; border-radius: 12px; border: 1px solid #ddd; font-size: 1rem; }
+input {
+  width: 100%;
+  padding: 12px 16px;
+  margin-bottom: 12px;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  font-size: 1.4rem;
+}
 
 .special-winner-tag {
-  display: inline-block; background: #ede7f6; color: var(--special);
-  padding: 4px 10px; border-radius: 99px; font-size: 0.8rem; margin: 2px; font-weight: 700;
+  display: inline-block;
+  background: #ede7f6;
+  color: var(--special);
+  padding: 4px 12px;
+  border-radius: 99px;
+  font-size: 0.9rem;
+  margin: 4px;
+  font-weight: 700;
+  border: 1px solid #d1c4e9;
 }
 
-@media (max-width: 400px) {
-  .cell { font-size: 1rem; }
+@media (max-width: 600px) {
   .grid { gap: 6px; }
-  .cell { width: calc((100% - 24px) / 5); }
+  .cell { width: calc((100% - 24px) / 5); font-size: 1.1rem; }
 }
 </style>
 </head>
 
 <body>
-<div id="admin-modal" class="modal-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.7);display:none;align-items:center;justify-content:center;z-index:999">
-  <div class="card" style="width:90%;max-width:350px;">
+  <div id="admin-modal" class="modal-overlay">
+  <div class="modal-content">
     <h3>管理者登入</h3>
     <input id="admin-email" type="email" placeholder="Email">
     <input id="admin-pwd" type="password" placeholder="密碼">
-    <button class="btn primary" onclick="doAdminLogin()">登入</button>
-    <button class="btn ghost" style="width:100%;margin-top:8px" onclick="closeAdminModal()">取消</button>
+    <button class="btn primary" style="width:100%" onclick="doAdminLogin()">登入</button>
+    <button class="btn ghost" style="width:100%;margin-top:8px;" onclick="closeAdminModal()">取消</button>
   </div>
 </div>
 
 <div class="container">
-  <div class="header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px">
-    <div onclick="triggerAdmin()" style="font-weight:900;color:var(--primary);cursor:pointer">🧧 2025 賓果 v2.9.3</div>
-    <div id="user-info" style="font-size:0.8rem;color:var(--muted)"></div>
+  <div class="header">
+    <div class="title" onclick="triggerAdmin()">🧧 2025 賓果系統 v2.9.3.1</div>
+    <div id="user-info" class="user-info">載入中...</div>
   </div>
 
   <div id="view-login" class="card hidden">
-    <h3 style="text-align:center;color:var(--primary)">玩家登入</h3>
+    <h3>玩家登入</h3>
     <input id="player-name" type="text" placeholder="請輸入真實姓名" />
-    <button class="btn primary" onclick="doPlayerLogin()">進入遊戲</button>
+    <button class="btn primary" style="width:100%;margin-top:12px" onclick="doPlayerLogin()">進入遊戲</button>
   </div>
 
   <div id="view-player" class="hidden">
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center">
-        <div id="player-name-display" style="font-weight:700"></div>
-        <button class="btn ghost" style="padding:4px 12px;font-size:0.8rem" onclick="doSignOut()">登出</button>
+        <div>
+          <div id="player-name-display" style="font-weight:700;font-size:1.1rem"></div>
+          <div id="lock-status-label" style="font-size:0.95rem;color:var(--muted)"></div>
+        </div>
+        <button class="btn ghost" onclick="doSignOut()">登出</button>
       </div>
-      
-      <div style="text-align:center;margin-top:15px">
+
+      <div style="text-align:center;margin-top:12px">
         <div id="draw-display">READY</div>
+        <div id="bingo-status" style="margin-top:6px; font-weight: 800; color: var(--success);"></div>
         
-        <div id="player-draw-zone" class="hidden" style="margin: 15px 0; background: #fff8e1; padding: 15px; border-radius: 15px; border: 2px dashed #ffb300;">
-            <div style="font-weight: 800; color: #f57c00; margin-bottom: 8px;">🔥 輪到你抽號了！</div>
-            <button class="btn primary" onclick="drawNewNumber()">🎲 幫大家抽一個號碼</button>
+        <div id="drawer-zone" style="display:none; margin-top:15px; padding:15px; border:2px dashed var(--primary); border-radius:12px; background:#fff5f2;">
+          <div style="font-weight:800; color:var(--primary); margin-bottom:8px;">🔥 輪到你抽號了！</div>
+          <button id="btn-player-draw" class="btn primary" onclick="drawNewNumber()">🎲 按此抽號</button>
         </div>
 
-        <div id="bingo-status" style="color:var(--success);font-weight:700;margin-bottom:10px"></div>
-        <div id="bingo-grid" class="grid"></div>
+        <div id="bingo-grid" class="grid" aria-label="賓果盤"></div>
         
-        <div id="player-special-box" style="display:none;border-top:1px solid #eee;margin-top:15px;padding-top:10px">
-            <div style="font-size:0.75rem;color:var(--muted)">🎁 特別獎得獎名單</div>
+        <div id="player-special-box" style="margin-top:20px; padding-top:15px; border-top:1px solid #eee; display:none;">
+            <div style="font-size:0.8rem; color:var(--muted); margin-bottom:8px;">🎁 特別獎得獎名單</div>
             <div id="player-special-winners"></div>
         </div>
 
-        <div id="setup-btns" style="display:flex;gap:10px;margin-top:15px">
-          <button class="btn ghost" style="flex:1" onclick="reRollBoard()">🎲 換號碼</button>
-          <button class="btn primary" style="flex:2" onclick="confirmBoard()">🔒 鎖定盤面</button>
+        <div id="setup-btns" style="margin-top:15px;display:flex;gap:10px;justify-content:center">
+          <button class="btn ghost" onclick="reRollBoard()">🎲 換號碼</button>
+          <button class="btn primary" onclick="confirmBoard()">🔒 鎖定盤面</button>
         </div>
       </div>
     </div>
@@ -145,29 +330,47 @@ input { width: 100%; padding: 12px; margin-bottom: 12px; border-radius: 12px; bo
 
   <div id="view-admin" class="hidden">
     <div class="card">
-      <div style="display:flex;justify-content:space-between;gap:10px">
-        <div class="stat-box"><span id="count-online" class="stat-val">0</span>在線</div>
-        <div class="stat-box"><span id="count-total" class="stat-val">0</span>總數</div>
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div style="font-weight:700">管理者控制台 <span id="admin-lock-indicator" style="font-size:0.8rem;padding:4px 8px;background:#eee;border-radius:6px">未鎖定</span></div>
+        <button class="btn ghost" onclick="doSignOut()">登出</button>
       </div>
 
-      <div style="text-align:center;background:#fff8e1;padding:15px;border-radius:15px;margin:15px 0">
-        <div id="admin-sync-num" style="font-size:2.5rem;font-weight:900;color:var(--primary)">--</div>
-        <div id="admin-special-winners"></div>
-        <div id="drawn-history-list" style="margin-top:10px;font-size:0.8rem"></div>
+      <div class="stat-grid" style="margin-top:12px">
+        <div class="stat-box"><span id="count-online" class="stat-val">0</span><span>在線</span></div>
+        <div class="stat-box"><span id="count-total" class="stat-val">0</span><span>總人數</span></div>
       </div>
 
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        <button class="btn primary" onclick="drawNewNumber()">🎲 管理者抽號</button>
-        <button class="btn" style="background:#455a64;color:white" onclick="forceLockAll()">🔒 全員鎖定</button>
-        <button class="btn" style="background:#ffb300;color:white" onclick="pickRandomUserToDraw()">🌟 選人抽號</button>
-        <button class="btn special" onclick="drawSpecialPrize()">🎁 抽特別獎</button>
-        <button class="btn danger" style="grid-column:span 2;background:#ffebee;color:#c62828" onclick="handleReset()">⚠️ 重置遊戲 (含清空歷史)</button>
+      <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+        <div class="stat-box" style="flex:1;min-width:120px"><span id="cnt-5" class="stat-val">0</span><span style="font-size:0.8rem">5格連線</span></div>
+        <div class="stat-box" style="flex:1;min-width:120px"><span id="cnt-4" class="stat-val">0</span><span style="font-size:0.8rem">4格連線</span></div>
+        <div class="stat-box" style="flex:1;min-width:120px"><span id="cnt-3" class="stat-val">0</span><span style="font-size:0.8rem">3格連線</span></div>
+        <div class="stat-box" style="flex:1;min-width:120px"><span id="cnt-2" class="stat-val">0</span><span style="font-size:0.8rem">2格連線</span></div>
       </div>
-      
-      <div style="margin-top:15px;font-size:0.8rem;color:var(--muted)">
-          <div id="pending-choices"></div>
-          <div id="bingo-alerts" style="color:var(--success)"></div>
+
+      <div style="margin-top:12px;text-align:center;background:#fff8e1;padding:12px;border-radius:10px">
+        <div style="font-size:0.9rem">最新開獎 / 特別獎</div>
+        <div id="admin-sync-num" style="font-weight:800;margin-top:6px; font-size: 2.5rem; color: var(--primary);">--</div>
+        <div id="admin-special-winners" style="margin-top:8px; color:var(--special); font-weight:700; font-size:0.9rem;"></div>
+        <div id="drawn-history-list" style="margin-top:8px;border-top:1px dashed #ddd;padding-top:8px"></div>
       </div>
+
+      <div style="margin-top:12px;display:grid;grid-template-columns:repeat(2,1fr);gap:10px">
+        <button id="btn-draw" class="btn primary" onclick="drawNewNumber()">🎲 抽號 (自動鎖定)</button>
+        <button class="btn" style="background:#455a64;color:white" onclick="forceLockAll()">🔒 強制全員鎖定</button>
+        <button class="btn" style="background:#ffb300; color: white;" onclick="pickLucky()">🌟 幸運兒選號</button>
+        <button class="btn" style="background:var(--special); color: white;" onclick="drawSpecialPrize()">🎁 抽特別獎</button>
+        <button class="btn" style="background:#00796b; color: white;" onclick="assignRandomDrawer()">🎯 指定下一位抽號者</button>
+        <button class="btn danger" onclick="removeAllPlayers()">🧹 移除所有使用者</button>
+        <button class="btn ghost" style="grid-column: span 2; border:1px solid #ddd" onclick="handleReset()">⚠️ 重置遊戲狀態 (恢復換號)</button>
+      </div>
+
+      <div class="card" style="margin-top:12px; border-color: #f4eae7;">
+        <div style="font-weight:700;font-size:0.95rem">📢 賓果與選號通知</div>
+        <div id="pending-choices" style="max-height:120px;overflow:auto;font-size:0.95rem;color:var(--primary);margin-top:8px"></div>
+        <div id="bingo-alerts" style="max-height:120px;overflow:auto;font-size:0.95rem;color:var(--success);margin-top:8px"></div>
+      </div>
+
+      <div class="card"><div id="status-log" class="status-log" aria-live="polite"></div></div>
     </div>
   </div>
 </div>
@@ -190,24 +393,28 @@ let currentUser = null;
 let myData = { name:"", board:[], locked:false };
 let gameHistory = [];
 let specialWinners = [];
-let pickedHistory = [];
 let allPlayersCache = [];
 let rollingTimer = null;
 let isAllLockedGlobal = false;
-let currentPickerUid = "";
+
+function logStatus(msg) {
+  const el = document.getElementById('status-log');
+  if(!el) return;
+  el.innerHTML = `<div>[${new Date().toLocaleTimeString()}] ${msg}</div>` + el.innerHTML;
+}
 
 function triggerAdmin() {
   window.ac = (window.ac || 0) + 1;
-  if(window.ac >= 5) { document.getElementById('admin-modal').style.display='flex'; window.ac=0; }
+  if(window.ac >= 5) { document.getElementById('admin-modal').style.display = 'flex'; window.ac = 0; }
 }
-function closeAdminModal() { document.getElementById('admin-modal').style.display='none'; }
+function closeAdminModal() { document.getElementById('admin-modal').style.display = 'none'; }
 
 async function doAdminLogin(){
   const email = document.getElementById('admin-email').value;
   const pwd = document.getElementById('admin-pwd').value;
   try {
     const cred = await auth.signInWithEmailAndPassword(email, pwd);
-    if(cred.user.uid === ALLOWED_UID) closeAdminModal();
+    if(cred.user.uid === ALLOWED_UID) { closeAdminModal(); logStatus("管理員登入成功"); }
     else { alert("權限不足"); await auth.signOut(); }
   } catch(e){ alert("登入失敗"); }
 }
@@ -217,8 +424,9 @@ auth.onAuthStateChanged(async user => {
   if(!user){ showView('login'); return; }
   if(user.uid === ALLOWED_UID){ showView('admin'); startApp(); return; }
   const snap = await db.collection("players").doc(user.uid).get();
-  if(snap.exists) myData = snap.data();
-  else {
+  if(snap.exists){
+    myData = snap.data();
+  } else {
     const name = document.getElementById('player-name').value || "訪客";
     myData = { name, board: shuffleArray(), locked:false, lastSeen: firebase.firestore.FieldValue.serverTimestamp() };
     await db.collection("players").doc(user.uid).set(myData);
@@ -243,20 +451,30 @@ function showView(name){
 
 function updateDrawDisplay(text) {
   const el = document.getElementById('draw-display');
+  if(!el) return;
   el.innerText = text;
-  el.style.fontSize = text.toString().length > 5 ? "1.8rem" : "3.5rem";
+  if (text.toString().length > 3) {
+    el.style.fontSize = "2.0rem";
+  } else if (text.toString().length > 2) {
+    el.style.fontSize = "2.8rem";
+  } else {
+    el.style.fontSize = window.innerWidth <= 600 ? "5.5rem" : "4.5rem";
+  }
 }
 
 function startApp(){
   db.collection("game_state").doc("current_game").onSnapshot(doc => {
-    const data = doc.data() || {};
+    const data = doc.data() || { history:[], isRolling:false, isAllLocked:false, luckyUser:"", isPickingLucky:false, specialWinners: [], authorizedDrawer: "", usedDrawers: [] };
     gameHistory = data.history || [];
     specialWinners = data.specialWinners || [];
-    pickedHistory = data.pickedHistory || [];
     isAllLockedGlobal = data.isAllLocked || false;
-    currentPickerUid = data.pickerUid || "";
+    
+    if(document.getElementById('admin-lock-indicator')) {
+      document.getElementById('admin-lock-indicator').innerText = isAllLockedGlobal ? "✅ 已鎖定" : "🔓 未鎖定";
+      document.getElementById('admin-lock-indicator').style.background = isAllLockedGlobal ? "#c8e6c9" : "#eee";
+    }
 
-    // 顯示特別獎
+    // 更新特別獎顯示
     const specialHtml = specialWinners.map(w => `<span class="special-winner-tag">🎁 ${w}</span>`).join('');
     if(document.getElementById('admin-special-winners')) document.getElementById('admin-special-winners').innerHTML = specialHtml;
     if(document.getElementById('player-special-winners')) {
@@ -264,19 +482,28 @@ function startApp(){
         document.getElementById('player-special-box').style.display = specialWinners.length > 0 ? 'block' : 'none';
     }
 
-    // 檢查目前是不是該我抽號
-    const pickerZone = document.getElementById('player-draw-zone');
-    if(pickerZone) {
-        if(currentPickerUid === currentUser.uid) pickerZone.classList.remove('hidden');
-        else pickerZone.classList.add('hidden');
+    // 判斷當前玩家是否被指定抽號
+    const drawerZone = document.getElementById('drawer-zone');
+    if (drawerZone) {
+      if (data.authorizedDrawer === myData.name && !data.isRolling) {
+        drawerZone.style.display = 'block';
+      } else {
+        drawerZone.style.display = 'none';
+      }
     }
 
     const finalValue = data.luckyUser ? data.luckyUser : (gameHistory.length ? gameHistory[gameHistory.length-1] : "READY");
+    document.getElementById('drawn-history-list').innerHTML = gameHistory.map(n => `<span class="history-ball">${n}</span>`).join('') || "等待開號";
     
     if(data.isRolling){
       if(!rollingTimer) {
         rollingTimer = setInterval(()=> {
-          let temp = data.isPickingLucky ? (allPlayersCache.length > 0 ? allPlayersCache[Math.floor(Math.random()*allPlayersCache.length)].name : "...") : Math.floor(Math.random()*25)+1;
+          let temp;
+          if (data.isPickingLucky) {
+             if (allPlayersCache.length > 0) {
+               temp = allPlayersCache[Math.floor(Math.random()*allPlayersCache.length)].name;
+             } else { temp = "抽獎中"; }
+          } else { temp = Math.floor(Math.random()*25)+1; }
           updateDrawDisplay(temp);
           if(document.getElementById('admin-sync-num')) document.getElementById('admin-sync-num').innerText = temp;
         }, 80);
@@ -286,26 +513,80 @@ function startApp(){
       updateDrawDisplay(finalValue);
       if(document.getElementById('admin-sync-num')) document.getElementById('admin-sync-num').innerText = finalValue;
       renderGrid();
+      if(currentUser.uid === ALLOWED_UID) updateConnectedStats();
+    }
+
+    if(data.luckyUser && data.luckyUser === myData.name && !data.isRolling && !data.isPickingSpecial && currentUser.uid !== ALLOWED_UID) {
+      if (specialWinners.includes(data.luckyUser)) return; 
+      
+      let valid = false; let num;
+      while(!valid) {
+        const input = prompt(`【🌟 恭喜你是幸運兒！】\n請輸入一個號碼 (1-25)：`);
+        if(input === null) break;
+        num = parseInt(input);
+        if(isNaN(num) || num < 1 || num > 25) alert("錯誤：請輸入 1 到 25 之間的數字。");
+        else if(gameHistory.includes(num)) alert(`${num} 已經被抽過囉。`);
+        else valid = true;
+      }
+      if(valid) {
+        db.collection("pending_choices").doc(currentUser.uid).set({
+          playerName: myData.name, number: num, timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        db.collection("game_state").doc("current_game").update({ luckyUser: "" });
+      }
     }
   });
 
   db.collection("players").onSnapshot(snap => {
     allPlayersCache = snap.docs.map(d => ({id: d.id, ...d.data()}));
-    const now = Date.now();
-    const online = allPlayersCache.filter(p => p.lastSeen && (now - p.lastSeen.toMillis()) < 300000);
-    if(document.getElementById('count-online')) document.getElementById('count-online').innerText = online.length;
-    if(document.getElementById('count-total')) document.getElementById('count-total').innerText = allPlayersCache.length;
+    
+    if (currentUser.uid === ALLOWED_UID) {
+      const now = Date.now();
+      const onlinePlayers = allPlayersCache.filter(p => {
+        if (!p.lastSeen) return false;
+        const last = p.lastSeen.toMillis ? p.lastSeen.toMillis() : 0;
+        return (now - last) < 300000;
+      });
+      document.getElementById('count-online').innerText = onlinePlayers.length;
+      document.getElementById('count-total').innerText = allPlayersCache.length;
+      updateConnectedStats();
+    }
+
+    if(currentUser.uid !== ALLOWED_UID){
+      const me = allPlayersCache.find(p => p.id === currentUser.uid);
+      if(me && me.locked !== myData.locked) {
+        myData.locked = me.locked;
+        renderGrid();
+      }
+    }
   });
+
+  if(currentUser.uid === ALLOWED_UID){
+    db.collection("pending_choices").orderBy("timestamp","desc").onSnapshot(snap => {
+      document.getElementById('pending-choices').innerHTML = snap.docs.map(d => `<div>❓ ${d.data().playerName} 選了 ${d.data().number} <button onclick="confirmLucky('${d.id}', ${d.data().number})">採納</button></div>`).join('');
+    });
+    db.collection("bingo_events").orderBy("timestamp","desc").limit(10).onSnapshot(snap => {
+      document.getElementById('bingo-alerts').innerHTML = snap.docs.map(d => `<div>🎉 <b>${d.data().name}</b> 賓果了！</div>`).join('');
+    });
+  }
 }
 
 function renderGrid(){
   const grid = document.getElementById('bingo-grid');
   if(!grid) return;
   grid.innerHTML = '';
-  const lines = [[0,1,2,3,4],[5,6,7,8,9],[10,11,12,13,14],[15,16,17,18,19],[20,21,22,23,24],[0,5,10,15,20],[1,6,11,16,21],[2,7,12,17,22],[3,8,13,18,23],[4,9,14,19,24],[0,6,12,18,24],[4,8,12,16,20]];
   const winIdx = new Set();
+  const lines = [
+    [0,1,2,3,4],[5,6,7,8,9],[10,11,12,13,14],[15,16,17,18,19],[20,21,22,23,24],
+    [0,5,10,15,20],[1,6,11,16,21],[2,7,12,17,22],[3,8,13,18,23],[4,9,14,19,24],
+    [0,6,12,18,24],[4,8,12,16,20]
+  ];
+  let winLineCount = 0;
   lines.forEach(line => {
-    if(line.every(idx => gameHistory.includes(myData.board[idx]))) line.forEach(i=>winIdx.add(i));
+    if(line.every(idx => gameHistory.includes(myData.board[idx]))) {
+      line.forEach(i=>winIdx.add(i));
+      winLineCount++;
+    }
   });
   myData.board.forEach((num,i)=>{
     const div = document.createElement('div');
@@ -313,67 +594,39 @@ function renderGrid(){
     div.innerText = num;
     grid.appendChild(div);
   });
+  if(winLineCount > 0 && myData.locked) {
+    document.getElementById('bingo-status').innerText = `已達成 ${winLineCount} 條線！`;
+    db.collection("bingo_events").doc(currentUser.uid).set({ name: myData.name, timestamp: firebase.firestore.FieldValue.serverTimestamp() });
+  }
   document.getElementById('setup-btns').style.display = (myData.locked || isAllLockedGlobal) ? 'none' : 'flex';
+  document.getElementById('lock-status-label').innerText = (myData.locked || isAllLockedGlobal) ? "🔒 盤面已鎖定" : "🎲 設定中...";
 }
 
-async function drawNewNumber(){
-  const ref = db.collection("game_state").doc("current_game");
-  const snap = await ref.get();
-  const hist = snap.data().history || [];
-  const pool = Array.from({length:25},(_,i)=>i+1).filter(n=>!hist.includes(n));
-  if(!pool.length) return alert("全部抽完囉！");
-
-  await ref.update({ isRolling: true, isPickingLucky: false, luckyUser: "" });
-  
-  setTimeout(async ()=>{
-    const p = pool[Math.floor(Math.random()*pool.length)];
-    // 抽完後，清空 pickerUid，讓按鈕消失
-    await ref.update({ 
-        history: firebase.firestore.FieldValue.arrayUnion(p), 
-        isRolling: false,
-        pickerUid: "" 
-    });
-  }, 1500);
-}
-
-// 隨機選一個「在線且沒被選過」的人來抽號
-async function pickRandomUserToDraw() {
-  const now = Date.now();
-  const pool = allPlayersCache.filter(p => {
-    const isOnline = p.lastSeen && (now - p.lastSeen.toMillis()) < 300000;
-    return isOnline && !pickedHistory.includes(p.id) && p.id !== ALLOWED_UID;
+function calculateMaxConsecutive(board, history) {
+  const lines = [[0,1,2,3,4],[5,6,7,8,9],[10,11,12,13,14],[15,16,17,18,19],[20,21,22,23,24],[0,5,10,15,20],[1,6,11,16,21],[2,7,12,17,22],[3,8,13,18,23],[4,9,14,19,24],[0,6,12,18,24],[4,8,12,16,20]];
+  let max = 0;
+  lines.forEach(line => {
+    let hits = 0;
+    line.forEach(idx => { if(history.includes(board[idx])) hits++; });
+    if(hits > max) max = hits;
   });
-
-  if(pool.length === 0) return alert("沒有符合資格的在線人員（或全都抽過一次了）");
-
-  const ref = db.collection("game_state").doc("current_game");
-  await ref.update({ isRolling: true, isPickingLucky: true, luckyUser: "" });
-
-  setTimeout(async () => {
-    const winner = pool[Math.floor(Math.random()*pool.length)];
-    await ref.update({ 
-        isRolling: false, 
-        isPickingLucky: false, 
-        luckyUser: "🌟 請 " + winner.name + " 抽號",
-        pickerUid: winner.id,
-        pickedHistory: firebase.firestore.FieldValue.arrayUnion(winner.id)
-    });
-  }, 2000);
+  return max;
 }
 
-async function drawSpecialPrize() {
-  const now = Date.now();
-  const pool = allPlayersCache.filter(p => {
-    const isOnline = p.lastSeen && (now - p.lastSeen.toMillis()) < 300000;
-    return isOnline && !specialWinners.includes(p.name);
+function updateConnectedStats(){
+  const counts = {5:0,4:0,3:0,2:0};
+  allPlayersCache.forEach(p=>{
+    if(!p.board || !p.locked) return;
+    const max = calculateMaxConsecutive(p.board, gameHistory);
+    if(max >= 5) counts[5]++;
+    else if(max === 4) counts[4]++;
+    else if(max === 3) counts[3]++;
+    else if(max === 2) counts[2]++;
   });
-  if(pool.length === 0) return alert("無人可抽");
-  const ref = db.collection("game_state").doc("current_game");
-  await ref.update({ isRolling: true, isPickingLucky: true, luckyUser: "" });
-  setTimeout(async () => {
-    const winner = pool[Math.floor(Math.random()*pool.length)].name;
-    await ref.update({ isRolling: false, isPickingLucky: false, luckyUser: "🎁 特別獎：" + winner, specialWinners: firebase.firestore.FieldValue.arrayUnion(winner) });
-  }, 2000);
+  if(document.getElementById('cnt-5')) document.getElementById('cnt-5').innerText = counts[5];
+  if(document.getElementById('cnt-4')) document.getElementById('cnt-4').innerText = counts[4];
+  if(document.getElementById('cnt-3')) document.getElementById('cnt-3').innerText = counts[3];
+  if(document.getElementById('cnt-2')) document.getElementById('cnt-2').innerText = counts[2];
 }
 
 async function forceLockAll() {
@@ -383,26 +636,141 @@ async function forceLockAll() {
   await db.collection("game_state").doc("current_game").update({ isAllLocked: true });
 }
 
+// 修改：抽號邏輯整合授權判斷
+async function drawNewNumber(){
+  const ref = db.collection("game_state").doc("current_game");
+  if(!isAllLockedGlobal) await forceLockAll();
+  const snap = await ref.get();
+  const data = snap.data();
+  const hist = data.history || [];
+  const currentDrawer = data.authorizedDrawer; 
+  
+  const pool = Array.from({length:25},(_,i)=>i+1).filter(n=>!hist.includes(n));
+  if(!pool.length) return alert("抽完囉");
+  
+  await ref.update({ isRolling: true, isPickingLucky: false, luckyUser: "" });
+  
+  setTimeout(async ()=>{
+    const p = pool[Math.floor(Math.random()*pool.length)];
+    const updateObj = { 
+      history: firebase.firestore.FieldValue.arrayUnion(p), 
+      isRolling: false,
+      authorizedDrawer: "" 
+    };
+    
+    // 如果是由授權玩家抽出的，加入已抽過名單
+    if (currentDrawer) {
+      updateObj.usedDrawers = firebase.firestore.FieldValue.arrayUnion(currentDrawer);
+    }
+    
+    await ref.update(updateObj);
+  }, 1200);
+}
+
+// 新增：隨機指定下一位抽號者
+async function assignRandomDrawer() {
+  const ref = db.collection("game_state").doc("current_game");
+  const snap = await ref.get();
+  const state = snap.data();
+  const usedDrawers = state.usedDrawers || [];
+
+  const now = Date.now();
+  const pool = allPlayersCache.filter(p => {
+    const last = p.lastSeen?.toMillis ? p.lastSeen.toMillis() : 0;
+    // 過濾在線、且名字不在「已抽過名單」的人
+    return (now - last) < 300000 && !usedDrawers.includes(p.name);
+  });
+
+  if (pool.length === 0) return alert("沒有符合資格的在線人員（或都已抽過）");
+
+  const luckyOne = pool[Math.floor(Math.random() * pool.length)].name;
+  
+  await ref.update({ 
+    authorizedDrawer: luckyOne,
+    luckyUser: "🎰 指定抽號者：" + luckyOne 
+  });
+  logStatus("🎯 已指定 " + luckyOne + " 執行下次抽號");
+}
+
+async function drawSpecialPrize() {
+  const now = Date.now();
+  const pool = allPlayersCache.filter(p => {
+    const last = p.lastSeen?.toMillis ? p.lastSeen.toMillis() : 0;
+    const isOnline = (now - last) < 300000;
+    return isOnline && !specialWinners.includes(p.name);
+  });
+
+  if(pool.length === 0) return alert("沒有符合資格的在線人員（或都已中獎）");
+
+  const ref = db.collection("game_state").doc("current_game");
+  await ref.update({ isRolling: true, isPickingLucky: true, luckyUser: "" });
+
+  setTimeout(async () => {
+    const winner = pool[Math.floor(Math.random()*pool.length)].name;
+    await ref.update({ 
+        isRolling: false, 
+        isPickingLucky: false, 
+        luckyUser: "🎁 特別獎：" + winner,
+        specialWinners: firebase.firestore.FieldValue.arrayUnion(winner)
+    });
+    logStatus("🎁 抽出了特別獎：" + winner);
+  }, 2500);
+}
+
 async function handleReset(){
-  if(!confirm("重置將清空所有得獎紀錄、抽號紀錄與選人紀錄，確定嗎？")) return;
+  if(!confirm("確定重置遊戲？(包含重置特別獎與抽號者名單)")) return;
   const batch = db.batch();
   allPlayersCache.forEach(p => batch.update(db.collection("players").doc(p.id), { locked: false }));
+  const colls = ["pending_choices","bingo_events"];
+  for(const c of colls){
+    const s = await db.collection(c).get();
+    s.forEach(d=>batch.delete(d.ref));
+  }
   batch.set(db.collection("game_state").doc("current_game"), { 
-    history:[], isRolling:false, isAllLocked:false, luckyUser:"", 
-    specialWinners: [], pickedHistory: [], pickerUid: "" 
+    history:[], 
+    isRolling:false, 
+    isAllLocked:false, 
+    luckyUser:"", 
+    isPickingLucky:false, 
+    specialWinners: [],
+    authorizedDrawer: "",
+    usedDrawers: []
   });
   await batch.commit();
   location.reload();
 }
 
+async function confirmLucky(id, num) {
+  await db.collection("game_state").doc("current_game").update({ history: firebase.firestore.FieldValue.arrayUnion(num), luckyUser: "" });
+  await db.collection("pending_choices").doc(id).delete();
+}
+
+async function pickLucky() {
+  if(allPlayersCache.length === 0) return alert("沒人在線");
+  const ref = db.collection("game_state").doc("current_game");
+  await ref.update({ isRolling: true, isPickingLucky: true, luckyUser: "" });
+  setTimeout(async () => {
+    const lucky = allPlayersCache[Math.floor(Math.random()*allPlayersCache.length)].name;
+    await ref.update({ isRolling: false, isPickingLucky: false, luckyUser: lucky });
+    logStatus("🌟 抽出了幸運兒：" + lucky);
+  }, 2500);
+}
+
 function shuffleArray(){ return Array.from({length:25},(_,i)=>i+1).sort(()=>Math.random()-0.5); }
 function reRollBoard(){ myData.board = shuffleArray(); renderGrid(); }
 async function confirmBoard(){
-  if(!confirm("鎖定後不能換號碼，確定嗎？")) return;
+  if(!confirm("確定鎖定？")) return;
   await db.collection("players").doc(currentUser.uid).update({ locked:true });
   myData.locked = true; renderGrid();
 }
 function doSignOut(){ auth.signOut(); location.reload(); }
+async function removeAllPlayers() {
+  if(!confirm("確定要刪除所有使用者嗎？")) return;
+  const batch = db.batch();
+  allPlayersCache.forEach(p => batch.delete(db.collection("players").doc(p.id)));
+  await batch.commit();
+  location.reload();
+}
 
 setInterval(() => {
   if(currentUser && currentUser.uid !== ALLOWED_UID) {
