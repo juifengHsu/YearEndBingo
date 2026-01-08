@@ -422,14 +422,27 @@ async function doAdminLogin(){
 }
 
 auth.onAuthStateChanged(async user => {
+  auth.onAuthStateChanged(async user => {
   currentUser = user;
   if(!user){ showView('login'); return; }
   if(user.uid === ALLOWED_UID){ showView('admin'); startApp(); return; }
+  
   const snap = await db.collection("players").doc(user.uid).get();
+  
   if(snap.exists){
     myData = snap.data();
   } else {
-    const name = document.getElementById('player-name').value || "訪客";
+    // 這裡是最容易產生訪客的地方！
+    const name = document.getElementById('player-name').value.trim();
+    
+    // 改良邏輯：如果抓不到名字，表示資料是被管理者刪除的，強制要求重新登入
+    if(!name || name === "訪客") {
+      console.log("偵測到無效姓名，引導至登入頁面");
+      auth.signOut(); // 強制登出，讓使用者回到輸入姓名的畫面
+      showView('login');
+      return;
+    }
+    
     myData = { name, board: shuffleArray(), locked:false, lastSeen: firebase.firestore.FieldValue.serverTimestamp() };
     await db.collection("players").doc(user.uid).set(myData);
   }
