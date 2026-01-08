@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>2025 尾牙賓果系統 v2.9.2</title>
+<title>2025 尾牙賓果系統 v2.9.3</title>
 
 <link href="https://fonts.googleapis.com" rel="preconnect"/>
 <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
@@ -53,8 +53,9 @@ body {
   padding: 10px 0;
 }
 
+/* 修改：Title 字號小一號 (從 1.8rem 改為 1.5rem) */
 .title {
-  font-size: 1.8rem;
+  font-size: 1.5rem;
   font-weight: 900;
   color: var(--primary);
   letter-spacing: -0.04em;
@@ -212,8 +213,9 @@ body {
   100% { transform: scale(1.05); }
 }
 
+/* 修改：抽號顯示字樣小一號 (從 4.5rem 下降) */
 #draw-display {
-  font-size: 4.5rem;
+  font-size: 3.5rem;
   font-weight: 900;
   color: var(--primary);
   height: 110px;
@@ -284,7 +286,7 @@ input {
 
 <div class="container">
   <div class="header">
-    <div class="title" onclick="triggerAdmin()">🧧 2025 賓果系統 v2.9.3.1</div>
+    <div class="title" onclick="triggerAdmin()">🧧 2025 賓果系統 v2.9.3</div>
     <div id="user-info" class="user-info">載入中...</div>
   </div>
 
@@ -449,16 +451,17 @@ function showView(name){
   document.getElementById('view-'+name).classList.remove('hidden');
 }
 
+// 修改：更新抽號顯示字級
 function updateDrawDisplay(text) {
   const el = document.getElementById('draw-display');
   if(!el) return;
   el.innerText = text;
   if (text.toString().length > 3) {
-    el.style.fontSize = "2.0rem";
+    el.style.fontSize = "1.8rem";
   } else if (text.toString().length > 2) {
-    el.style.fontSize = "2.8rem";
+    el.style.fontSize = "2.2rem";
   } else {
-    el.style.fontSize = window.innerWidth <= 600 ? "5.5rem" : "4.5rem";
+    el.style.fontSize = window.innerWidth <= 600 ? "4.5rem" : "3.5rem";
   }
 }
 
@@ -474,15 +477,16 @@ function startApp(){
       document.getElementById('admin-lock-indicator').style.background = isAllLockedGlobal ? "#c8e6c9" : "#eee";
     }
 
-    // 更新特別獎顯示
+    // 修改：特別獎顯示邏輯 (無名單時隱藏)
     const specialHtml = specialWinners.map(w => `<span class="special-winner-tag">🎁 ${w}</span>`).join('');
     if(document.getElementById('admin-special-winners')) document.getElementById('admin-special-winners').innerHTML = specialHtml;
+    
     if(document.getElementById('player-special-winners')) {
         document.getElementById('player-special-winners').innerHTML = specialHtml;
+        // 修改：如果有得獎人才顯示區塊
         document.getElementById('player-special-box').style.display = specialWinners.length > 0 ? 'block' : 'none';
     }
 
-    // 判斷當前玩家是否被指定抽號
     const drawerZone = document.getElementById('drawer-zone');
     if (drawerZone) {
       if (data.authorizedDrawer === myData.name && !data.isRolling) {
@@ -594,10 +598,15 @@ function renderGrid(){
     div.innerText = num;
     grid.appendChild(div);
   });
-  if(winLineCount > 0 && myData.locked) {
+  
+  // 修改：若重置後 gameHistory 為空，強制清空連線字樣
+  if(winLineCount > 0 && myData.locked && gameHistory.length > 0) {
     document.getElementById('bingo-status').innerText = `已達成 ${winLineCount} 條線！`;
     db.collection("bingo_events").doc(currentUser.uid).set({ name: myData.name, timestamp: firebase.firestore.FieldValue.serverTimestamp() });
+  } else {
+    document.getElementById('bingo-status').innerText = "";
   }
+  
   document.getElementById('setup-btns').style.display = (myData.locked || isAllLockedGlobal) ? 'none' : 'flex';
   document.getElementById('lock-status-label').innerText = (myData.locked || isAllLockedGlobal) ? "🔒 盤面已鎖定" : "🎲 設定中...";
 }
@@ -636,7 +645,6 @@ async function forceLockAll() {
   await db.collection("game_state").doc("current_game").update({ isAllLocked: true });
 }
 
-// 修改：抽號邏輯整合授權判斷
 async function drawNewNumber(){
   const ref = db.collection("game_state").doc("current_game");
   if(!isAllLockedGlobal) await forceLockAll();
@@ -657,17 +665,13 @@ async function drawNewNumber(){
       isRolling: false,
       authorizedDrawer: "" 
     };
-    
-    // 如果是由授權玩家抽出的，加入已抽過名單
     if (currentDrawer) {
       updateObj.usedDrawers = firebase.firestore.FieldValue.arrayUnion(currentDrawer);
     }
-    
     await ref.update(updateObj);
   }, 1200);
 }
 
-// 新增：隨機指定下一位抽號者
 async function assignRandomDrawer() {
   const ref = db.collection("game_state").doc("current_game");
   const snap = await ref.get();
@@ -677,7 +681,6 @@ async function assignRandomDrawer() {
   const now = Date.now();
   const pool = allPlayersCache.filter(p => {
     const last = p.lastSeen?.toMillis ? p.lastSeen.toMillis() : 0;
-    // 過濾在線、且名字不在「已抽過名單」的人
     return (now - last) < 300000 && !usedDrawers.includes(p.name);
   });
 
@@ -717,15 +720,19 @@ async function drawSpecialPrize() {
   }, 2500);
 }
 
+// 修改：重置邏輯加入連線資訊清除
 async function handleReset(){
   if(!confirm("確定重置遊戲？(包含重置特別獎與抽號者名單)")) return;
   const batch = db.batch();
   allPlayersCache.forEach(p => batch.update(db.collection("players").doc(p.id), { locked: false }));
+  
+  // 修改：確實清除所有通知與連線事件
   const colls = ["pending_choices","bingo_events"];
   for(const c of colls){
     const s = await db.collection(c).get();
     s.forEach(d=>batch.delete(d.ref));
   }
+  
   batch.set(db.collection("game_state").doc("current_game"), { 
     history:[], 
     isRolling:false, 
@@ -764,12 +771,15 @@ async function confirmBoard(){
   myData.locked = true; renderGrid();
 }
 function doSignOut(){ auth.signOut(); location.reload(); }
+
+// 修改：刪除所有使用者時強制登出
 async function removeAllPlayers() {
-  if(!confirm("確定要刪除所有使用者嗎？")) return;
+  if(!confirm("確定要刪除所有使用者嗎？這將會讓您登出。")) return;
   const batch = db.batch();
   allPlayersCache.forEach(p => batch.delete(db.collection("players").doc(p.id)));
   await batch.commit();
-  location.reload();
+  await auth.signOut(); // 強制登出
+  location.reload(); // 回到登入畫面
 }
 
 setInterval(() => {
